@@ -17,21 +17,30 @@ class Issue(Base):
     __tablename__ = "issues"
     
     id = Column(Integer, primary_key=True, index=True)
-    category = Column(String)
+    title = Column(String, nullable=False)  # ДОБАВЛЕНО
     description = Column(String, nullable=True)
+    category = Column(String)  # category вместо categoryId
+    district = Column(String)  # ДОБАВЛЕНО
     latitude = Column(Float)
     longitude = Column(Float)
-    photo_before = Column(String)
-    status = Column(String, default="pending")
+    address = Column(String)  # ДОБАВЛЕНО
+    photo_before = Column(String, nullable=True)
+    photo_hash = Column(String, nullable=True)
+    status = Column(String, default="new")
     cluster_id = Column(Integer, ForeignKey("clusters.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user_id = Column(Integer, ForeignKey("users.id"))
+    ai_feedback = Column(String, nullable=True)
+    # Добавим для совместимости
+    votesCount = Column(Integer, default=0)
 
 class Cluster(Base):
     __tablename__ = "clusters"
     
     id = Column(Integer, primary_key=True, index=True)
-    category = Column(String)
+    category = Column(String)  # category вместо categoryId
+    title = Column(String)  # ДОБАВЛЕНО
+    district = Column(String)  # ДОБАВЛЕНО
     center_lat = Column(Float)
     center_lon = Column(Float)
     issue_count = Column(Integer, default=1)

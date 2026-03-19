@@ -1,53 +1,88 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useFilteredClusters } from "@/lib/store"
+import { useState, useEffect } from "react"
 import { MapContainer } from "@/components/map/map-container"
 import { MapFilters } from "@/components/map/map-filters"
-import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Badge } from "@/components/ui/badge"
-import { PlusCircle, SlidersHorizontal } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { SlidersHorizontal } from "lucide-react"
 import type { Cluster } from "@/lib/types"
-import { categories } from "@/lib/mock-data"
-import { getPriorityLabel, getStatusLabel, getPriorityColor } from "@/lib/geo"
-import Link from "next/link"
 
 export default function MapPage() {
-  const clusters = useFilteredClusters()
-  const router = useRouter()
+  const [clusters, setClusters] = useState<Cluster[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedCluster, setSelectedCluster] = useState<Cluster | null>(null)
 
-  function handleClusterClick(cluster: Cluster) {
-    setSelectedCluster(cluster)
+  // Загружаем кластеры с бэкенда
+  useEffect(() => {
+    fetchClusters()
+  }, [])
+
+  const fetchClusters = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('http://localhost:8000/api/clusters')
+      const data = await response.json()
+      
+      // Преобразуем данные из API в формат Cluster
+      const formattedClusters: Cluster[] = data.map((item: any) => ({
+        id: item.id.toString(),
+        categoryId: item.type,
+        latitude: item.position[0],
+        longitude: item.position[1],
+        radius: 2,
+        priority: item.priority,
+        status: item.status,
+        problemIds: [],
+        complaintsCount: item.count,
+        district: item.district || "Алматы",
+        title: item.title || "Проблема",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }))
+      
+      setClusters(formattedClusters)
+    } catch (error) {
+      console.error('Ошибка загрузки кластеров:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const cat = selectedCluster
-    ? categories.find((c) => c.id === selectedCluster.categoryId)
-    : null
+  const handleClusterClick = (cluster: Cluster) => {
+    setSelectedCluster(cluster)
+    // TODO: открыть детали проблемы
+  }
 
   return (
     <div className="relative flex h-full">
-      {/* Desktop filters sidebar */}
+      {/* Фильтры для десктопа */}
       <div className="hidden w-72 shrink-0 border-r border-border lg:block">
         <MapFilters />
       </div>
 
-      {/* Map area */}
+      {/* Карта */}
       <div className="relative flex-1">
-        <MapContainer
-          clusters={clusters}
-          onClusterClick={handleClusterClick}
-        />
+        {loading ? (
+          <div className="flex h-full items-center justify-center">
+            <p>Загрузка карты...</p>
+          </div>
+        ) : (
+          <MapContainer
+            clusters={clusters}
+            center={[43.2389, 76.8897]} // Алматы
+            zoom={12}
+            onClusterClick={handleClusterClick}
+          />
+        )}
 
-        {/* Mobile filter trigger */}
+        {/* Кнопка фильтров для мобильных */}
         <div className="absolute left-3 top-3 z-[1000] lg:hidden">
           <Sheet>
             <SheetTrigger asChild>
               <Button size="sm" variant="secondary" className="gap-2 shadow-lg">
                 <SlidersHorizontal className="h-4 w-4" />
-                Filters
+                Фильтры
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-80 p-0">
@@ -55,68 +90,6 @@ export default function MapPage() {
             </SheetContent>
           </Sheet>
         </div>
-
-        {/* Add Problem FAB */}
-        <div className="absolute bottom-6 right-6 z-[1000]">
-          <Button asChild size="lg" className="gap-2 rounded-full shadow-lg">
-            <Link href="/problem/create">
-              <PlusCircle className="h-5 w-5" />
-              Report Problem
-            </Link>
-          </Button>
-        </div>
-
-        {/* Selected cluster card */}
-        {selectedCluster && (
-          <div className="absolute bottom-6 left-1/2 z-[1000] w-[calc(100%-3rem)] max-w-md -translate-x-1/2 rounded-xl border border-border bg-card p-4 shadow-xl lg:left-auto lg:right-6 lg:translate-x-0">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <h3 className="font-semibold text-foreground">
-                  {selectedCluster.title}
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {cat?.name} &middot; {selectedCluster.district}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedCluster(null)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <span className="sr-only">Close</span>
-                &times;
-              </button>
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <Badge
-                style={{
-                  backgroundColor: getPriorityColor(selectedCluster.priority),
-                  color: "white",
-                }}
-              >
-                {getPriorityLabel(selectedCluster.priority)}
-              </Badge>
-              <Badge variant="outline">
-                {getStatusLabel(selectedCluster.status)}
-              </Badge>
-              <span className="text-sm font-medium text-foreground">
-                {selectedCluster.complaintsCount} complaints
-              </span>
-            </div>
-            <div className="mt-3">
-              <Button
-                size="sm"
-                className="w-full"
-                onClick={() =>
-                  router.push(
-                    `/problem/${selectedCluster.problemIds[0]}`
-                  )
-                }
-              >
-                View Details
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
