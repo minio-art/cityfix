@@ -1,11 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { useApp } from "@/lib/store"
-import { categories, districts } from "@/lib/mock-data"
-import { getPriorityColor, getPriorityLabel, getStatusLabel, getStatusColor } from "@/lib/geo"
-import type { Priority, Status } from "@/lib/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useMemo, useEffect } from "react"
+import { useAuth } from "@/hooks/useAuth"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,39 +18,96 @@ import {
 } from "@/components/ui/table"
 import { toast } from "sonner"
 import { Download, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { getIssues } from "@/lib/api"
 
 const PAGE_SIZE = 8
 
+const statusColors: Record<string, string> = {
+  new: "bg-blue-100 text-blue-700",
+  confirmed: "bg-yellow-100 text-yellow-700",
+  in_progress: "bg-orange-100 text-orange-700",
+  resolved: "bg-green-100 text-green-700",
+  rejected: "bg-red-100 text-red-700"
+}
+
+const priorityColors: Record<string, string> = {
+  critical: "bg-red-100 text-red-700",
+  medium: "bg-yellow-100 text-yellow-700",
+  low: "bg-green-100 text-green-700"
+}
+
 export default function AdminProblemsPage() {
-  const { state, dispatch } = useApp()
+  const { user } = useAuth()
+  const [problems, setProblems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [catFilter, setCatFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [page, setPage] = useState(0)
 
+  useEffect(() => {
+    fetchProblems()
+  }, [])
+
+  async function fetchProblems() {
+    try {
+      const data = await getIssues()
+      setProblems(data)
+    } catch (error) {
+      console.error('Ошибка загрузки:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function updateStatus(problemId: number, newStatus: string) {
+    try {
+      const response = await fetch(`http://localhost:8000/api/issues/${problemId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      if (response.ok) {
+        toast.success("Статус обновлен")
+        await fetchProblems()
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('status-updated'))
+        }
+      } else {
+        toast.error("Ошибка обновления")
+      }
+    } catch (error) {
+      toast.error("Ошибка соединения")
+    }
+  }
+
   const filtered = useMemo(() => {
-    return state.problems.filter((p) => {
-      if (catFilter !== "all" && p.categoryId !== catFilter) return false
+    return problems.filter((p) => {
+      if (catFilter !== "all" && p.category !== catFilter) return false
       if (statusFilter !== "all" && p.status !== statusFilter) return false
       if (priorityFilter !== "all" && p.priority !== priorityFilter) return false
       if (search) {
         const q = search.toLowerCase()
         return (
-          p.title.toLowerCase().includes(q) ||
-          p.district.toLowerCase().includes(q) ||
-          p.address.toLowerCase().includes(q)
+          p.title?.toLowerCase().includes(q) ||
+          p.district?.toLowerCase().includes(q) ||
+          p.address?.toLowerCase().includes(q)
         )
       }
       return true
     })
-  }, [state.problems, catFilter, statusFilter, priorityFilter, search])
+  }, [problems, catFilter, statusFilter, priorityFilter, search])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageData = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  function toggleSelect(id: string) {
+  function toggleSelect(id: number) {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
@@ -67,25 +121,11 @@ export default function AdminProblemsPage() {
     }
   }
 
-  function bulkChangeStatus(status: Status) {
-    selectedIds.forEach((id) => {
-      const problem = state.problems.find((p) => p.id === id)
-      if (problem) {
-        dispatch({ type: "UPDATE_PROBLEM", payload: { ...problem, status } })
-      }
+  function bulkChangeStatus(status: string) {
+    selectedIds.forEach(async (id) => {
+      await updateStatus(id, status)
     })
-    toast.success(`${selectedIds.length} problems updated to ${getStatusLabel(status)}`)
-    setSelectedIds([])
-  }
-
-  function bulkChangePriority(priority: Priority) {
-    selectedIds.forEach((id) => {
-      const problem = state.problems.find((p) => p.id === id)
-      if (problem) {
-        dispatch({ type: "UPDATE_PROBLEM", payload: { ...problem, priority } })
-      }
-    })
-    toast.success(`${selectedIds.length} problems updated to ${getPriorityLabel(priority)}`)
+    toast.success(`${selectedIds.length} problems updated`)
     setSelectedIds([])
   }
 
@@ -94,12 +134,12 @@ export default function AdminProblemsPage() {
     const rows = filtered.map((p) => [
       p.id,
       p.title,
-      categories.find((c) => c.id === p.categoryId)?.name || p.categoryId,
+      p.category,
       p.status,
       p.priority,
       p.district,
-      p.votesCount,
-      new Date(p.createdAt).toLocaleDateString(),
+      p.votesCount || 0,
+      new Date(p.created_at).toLocaleDateString(),
     ])
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
     const blob = new Blob([csv], { type: "text/csv" })
@@ -109,17 +149,19 @@ export default function AdminProblemsPage() {
     a.download = "cityfix-problems.csv"
     a.click()
     URL.revokeObjectURL(url)
-    toast.success("CSV exported successfully")
+    toast.success("CSV exported")
+  }
+
+  if (loading) {
+    return <div className="p-6">Загрузка проблем...</div>
   }
 
   return (
     <div className="p-6">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Problems</h1>
-          <p className="text-muted-foreground">
-            Manage and review all reported problems
-          </p>
+          <h1 className="text-2xl font-bold">Problems</h1>
+          <p className="text-muted-foreground">Manage and review all reported problems</p>
         </div>
         <Button variant="outline" className="gap-2" onClick={exportCSV}>
           <Download className="h-4 w-4" />
@@ -127,7 +169,6 @@ export default function AdminProblemsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
       <Card className="mb-6">
         <CardContent className="flex flex-wrap items-center gap-3 pt-4">
           <div className="relative flex-1">
@@ -136,38 +177,23 @@ export default function AdminProblemsPage() {
               placeholder="Search problems..."
               className="h-9 pl-9"
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setPage(0)
-              }}
+              onChange={(e) => { setSearch(e.target.value); setPage(0) }}
             />
           </div>
-          <Select
-            value={catFilter}
-            onValueChange={(v) => {
-              setCatFilter(v)
-              setPage(0)
-            }}
-          >
+          <Select value={catFilter} onValueChange={(v) => { setCatFilter(v); setPage(0) }}>
             <SelectTrigger className="h-9 w-40">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
+              <SelectItem value="roads">Дороги</SelectItem>
+              <SelectItem value="light">Освещение</SelectItem>
+              <SelectItem value="water">Водоснабжение</SelectItem>
+              <SelectItem value="trash">Мусор</SelectItem>
+              <SelectItem value="graffiti">Граффити</SelectItem>
             </SelectContent>
           </Select>
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => {
-              setStatusFilter(v)
-              setPage(0)
-            }}
-          >
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0) }}>
             <SelectTrigger className="h-9 w-36">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -180,13 +206,7 @@ export default function AdminProblemsPage() {
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
-          <Select
-            value={priorityFilter}
-            onValueChange={(v) => {
-              setPriorityFilter(v)
-              setPage(0)
-            }}
-          >
+          <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(0) }}>
             <SelectTrigger className="h-9 w-36">
               <SelectValue placeholder="Priority" />
             </SelectTrigger>
@@ -200,14 +220,11 @@ export default function AdminProblemsPage() {
         </CardContent>
       </Card>
 
-      {/* Bulk actions */}
       {selectedIds.length > 0 && (
         <Card className="mb-4">
           <CardContent className="flex flex-wrap items-center gap-3 py-3">
-            <span className="text-sm font-medium text-foreground">
-              {selectedIds.length} selected
-            </span>
-            <Select onValueChange={(v) => bulkChangeStatus(v as Status)}>
+            <span className="text-sm font-medium">{selectedIds.length} selected</span>
+            <Select onValueChange={(v) => bulkChangeStatus(v)}>
               <SelectTrigger className="h-8 w-40 text-xs">
                 <SelectValue placeholder="Change status..." />
               </SelectTrigger>
@@ -219,39 +236,20 @@ export default function AdminProblemsPage() {
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
-            <Select onValueChange={(v) => bulkChangePriority(v as Priority)}>
-              <SelectTrigger className="h-8 w-40 text-xs">
-                <SelectValue placeholder="Change priority..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs"
-              onClick={() => setSelectedIds([])}
-            >
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedIds([])}>
               Clear selection
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">
-                  <Checkbox
-                    checked={selectedIds.length === pageData.length && pageData.length > 0}
-                    onCheckedChange={toggleAll}
-                  />
+                  <Checkbox checked={selectedIds.length === pageData.length && pageData.length > 0} onCheckedChange={toggleAll} />
                 </TableHead>
                 <TableHead>Problem</TableHead>
                 <TableHead>Category</TableHead>
@@ -260,102 +258,59 @@ export default function AdminProblemsPage() {
                 <TableHead>District</TableHead>
                 <TableHead className="text-right">Votes</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pageData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
-                    No problems found matching your filters.
+              {pageData.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <Checkbox checked={selectedIds.includes(p.id)} onCheckedChange={() => toggleSelect(p.id)} />
+                  </TableCell>
+                  <TableCell className="font-medium">{p.title}</TableCell>
+                  <TableCell>{p.category}</TableCell>
+                  <TableCell>
+                    <Badge className={statusColors[p.status] || "bg-gray-100"}>{p.status}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={priorityColors[p.priority] || "bg-gray-100"}>{p.priority}</Badge>
+                  </TableCell>
+                  <TableCell>{p.district}</TableCell>
+                  <TableCell className="text-right">{p.votesCount || 0}</TableCell>
+                  <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <Select value={p.status} onValueChange={(v) => updateStatus(p.id, v)}>
+                      <SelectTrigger className="w-28 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new">New</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="resolved">Resolved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                 </TableRow>
-              ) : (
-                pageData.map((p) => {
-                  const cat = categories.find((c) => c.id === p.categoryId)
-                  return (
-                    <TableRow key={p.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.includes(p.id)}
-                          onCheckedChange={() => toggleSelect(p.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm font-medium text-foreground">
-                          {p.title}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {cat?.name || p.categoryId}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="gap-1 text-xs">
-                          <span className={`h-1.5 w-1.5 rounded-full ${getStatusColor(p.status)}`} />
-                          {getStatusLabel(p.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className="text-xs"
-                          style={{
-                            backgroundColor: getPriorityColor(p.priority) + "20",
-                            color: getPriorityColor(p.priority),
-                            border: `1px solid ${getPriorityColor(p.priority)}40`,
-                          }}
-                        >
-                          {getPriorityLabel(p.priority)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {p.district}
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium text-foreground">
-                        {p.votesCount}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(p.createdAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
+              ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of{" "}
-            {filtered.length}
+            Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
           </p>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              disabled={page === 0}
-              onClick={() => setPage((p) => p - 1)}
-            >
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
               <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Previous page</span>
             </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {page + 1} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              disabled={page >= totalPages - 1}
-              onClick={() => setPage((p) => p + 1)}
-            >
+            <span className="text-sm">Page {page + 1} of {totalPages}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
               <ChevronRight className="h-4 w-4" />
-              <span className="sr-only">Next page</span>
             </Button>
           </div>
         </div>

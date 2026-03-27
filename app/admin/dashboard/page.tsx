@@ -1,7 +1,7 @@
 "use client"
 
-import { useApp } from "@/lib/store"
-import { categories } from "@/lib/mock-data"
+import { useEffect, useState } from "react"
+import { useAuth } from "@/hooks/useAuth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -21,85 +21,84 @@ import {
   LineChart,
   Line,
 } from "recharts"
+import { getIssues, getClusters } from "@/lib/api"
 
-export default function AdminDashboard() {
-  const { state } = useApp()
-  const { problems, clusters } = state
+export default function AdminDashboardPage() {
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalProblems: 0,
+    activeIssues: 0,
+    resolved: 0,
+    criticalClusters: 0,
+    byCategory: {} as Record<string, number>,
+    recentReports: [] as any[]
+  })
 
-  const totalProblems = problems.length
-  const activeProblems = problems.filter(
-    (p) => p.status !== "resolved" && p.status !== "rejected"
-  ).length
-  const resolvedProblems = problems.filter((p) => p.status === "resolved").length
-  const criticalCount = clusters.filter((c) => c.priority === "critical").length
+  useEffect(() => {
+    fetchStats()
+  }, [])
 
-  // Category breakdown for bar chart
-  const categoryData = categories
-    .map((cat) => ({
-      name: cat.name.length > 12 ? cat.name.substring(0, 12) + "..." : cat.name,
-      count: problems.filter((p) => p.categoryId === cat.id).length,
-    }))
-    .filter((d) => d.count > 0)
+  async function fetchStats() {
+    try {
+      const issues = await getIssues()
+      const clusters = await getClusters()
+      
+      const active = issues.filter((i: any) => i.status !== 'resolved')
+      const resolved = issues.filter((i: any) => i.status === 'resolved')
+      const critical = clusters.filter((c: any) => c.priority === 'critical')
+      
+      const byCat: Record<string, number> = {}
+      issues.forEach((i: any) => {
+        byCat[i.category] = (byCat[i.category] || 0) + 1
+      })
+      
+      setStats({
+        totalProblems: issues.length,
+        activeIssues: active.length,
+        resolved: resolved.length,
+        criticalClusters: critical.length,
+        byCategory: byCat,
+        recentReports: issues.slice(0, 5)
+      })
+    } catch (error) {
+      console.error('Ошибка загрузки статистики:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const categoryData = Object.entries(stats.byCategory)
+    .map(([name, count]) => ({ name: name.length > 12 ? name.substring(0, 12) + "..." : name, count }))
     .sort((a, b) => b.count - a.count)
 
-  // Monthly trend data (mock)
   const trendData = [
-    { month: "Jul", reports: 18, resolved: 12 },
-    { month: "Aug", reports: 24, resolved: 15 },
-    { month: "Sep", reports: 32, resolved: 22 },
-    { month: "Oct", reports: 28, resolved: 20 },
-    { month: "Nov", reports: 35, resolved: 18 },
-    { month: "Dec", reports: 22, resolved: 25 },
+    { month: "Jul", reports: 0, resolved: 0 },
+    { month: "Aug", reports: 0, resolved: 0 },
+    { month: "Sep", reports: 0, resolved: 0 },
+    { month: "Oct", reports: 0, resolved: 0 },
+    { month: "Nov", reports: 0, resolved: 0 },
+    { month: "Dec", reports: stats.totalProblems, resolved: stats.resolved },
   ]
-
-  // Recent activity
-  const recentProblems = [...problems]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
 
   const statCards = [
-    {
-      title: "Total Problems",
-      value: totalProblems,
-      icon: FileText,
-      description: "All reported issues",
-      color: "text-primary",
-      bgColor: "bg-primary/10",
-    },
-    {
-      title: "Active Issues",
-      value: activeProblems,
-      icon: Clock,
-      description: "Awaiting resolution",
-      color: "text-amber-500",
-      bgColor: "bg-amber-500/10",
-    },
-    {
-      title: "Resolved",
-      value: resolvedProblems,
-      icon: CheckCircle2,
-      description: "Successfully fixed",
-      color: "text-green-500",
-      bgColor: "bg-green-500/10",
-    },
-    {
-      title: "Critical Clusters",
-      value: criticalCount,
-      icon: AlertTriangle,
-      description: "Need immediate attention",
-      color: "text-red-500",
-      bgColor: "bg-red-500/10",
-    },
+    { title: "Total Problems", value: stats.totalProblems, icon: FileText, color: "text-primary", bgColor: "bg-primary/10" },
+    { title: "Active Issues", value: stats.activeIssues, icon: Clock, color: "text-amber-500", bgColor: "bg-amber-500/10" },
+    { title: "Resolved", value: stats.resolved, icon: CheckCircle2, color: "text-green-500", bgColor: "bg-green-500/10" },
+    { title: "Critical Clusters", value: stats.criticalClusters, icon: AlertTriangle, color: "text-red-500", bgColor: "bg-red-500/10" },
   ]
+
+  if (loading) {
+    return <div className="p-6">Загрузка статистики...</div>
+  }
 
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">Overview of city problems and activity</p>
       </div>
 
-      {/* Stats cards */}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => (
           <Card key={card.title}>
@@ -109,7 +108,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{card.title}</p>
-                <p className="text-2xl font-bold text-foreground">{card.value}</p>
+                <p className="text-2xl font-bold">{card.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -117,7 +116,6 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Bar chart - Categories */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Problems by Category</CardTitle>
@@ -126,30 +124,15 @@ export default function AdminDashboard() {
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={categoryData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.5 0 0 / 0.1)" />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 11 }}
-                  stroke="oklch(0.5 0 0 / 0.5)"
-                />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  stroke="oklch(0.5 0 0 / 0.5)"
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "oklch(0.98 0 0)",
-                    border: "1px solid oklch(0.9 0 0)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="oklch(0.5 0 0 / 0.5)" />
+                <YAxis tick={{ fontSize: 11 }} stroke="oklch(0.5 0 0 / 0.5)" />
+                <Tooltip />
                 <Bar dataKey="count" fill="oklch(0.45 0.18 255)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Line chart - Trend */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Monthly Trend</CardTitle>
@@ -158,88 +141,41 @@ export default function AdminDashboard() {
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.5 0 0 / 0.1)" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 11 }}
-                  stroke="oklch(0.5 0 0 / 0.5)"
-                />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  stroke="oklch(0.5 0 0 / 0.5)"
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "oklch(0.98 0 0)",
-                    border: "1px solid oklch(0.9 0 0)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="reports"
-                  stroke="oklch(0.45 0.18 255)"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  name="Reports"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="resolved"
-                  stroke="#22c55e"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  name="Resolved"
-                />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="oklch(0.5 0 0 / 0.5)" />
+                <YAxis tick={{ fontSize: 11 }} stroke="oklch(0.5 0 0 / 0.5)" />
+                <Tooltip />
+                <Line type="monotone" dataKey="reports" stroke="oklch(0.45 0.18 255)" strokeWidth={2} dot={{ r: 4 }} name="Reports" />
+                <Line type="monotone" dataKey="resolved" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} name="Resolved" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent activity */}
       <Card className="mt-6">
         <CardHeader>
           <CardTitle className="text-base">Recent Reports</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-3">
-            {recentProblems.map((p) => {
-              const cat = categories.find((c) => c.id === p.categoryId)
-              return (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{p.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {cat?.name} &middot; {p.district} &middot;{" "}
-                        {new Date(p.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={
-                        p.priority === "critical"
-                          ? "destructive"
-                          : p.priority === "medium"
-                          ? "default"
-                          : "secondary"
-                      }
-                      className="text-xs"
-                    >
-                      {p.priority}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {p.status.replace("_", " ")}
-                    </Badge>
-                  </div>
+            {stats.recentReports.map((report: any) => (
+              <div key={report.id} className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium">{report.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {report.category} · {report.district} · {new Date(report.created_at).toLocaleDateString()}
+                  </p>
                 </div>
-              )
-            })}
+                <div className="flex gap-2">
+                  <Badge variant={report.priority === 'critical' ? 'destructive' : 'secondary'} className="text-xs">
+                    {report.priority}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {report.status}
+                  </Badge>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

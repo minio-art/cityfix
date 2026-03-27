@@ -6,6 +6,7 @@ import uuid
 import math
 from datetime import datetime
 from pathlib import Path
+from auth import get_current_user, get_current_admin
 
 # Импортируем из наших файлов
 from database import SessionLocal
@@ -43,7 +44,8 @@ async def create_issue(
     address: str = Form(...),
     user_id: str = Form(...),
     photos: List[UploadFile] = File(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     try:
         photo_urls = []
@@ -103,7 +105,7 @@ async def create_issue(
             address=address,
             photo_before=",".join(photo_urls) if photo_urls else None,
             photo_hash=photo_hash,
-            user_id=int(user_id) if user_id.isdigit() else 1,
+            user_id=int(user_id) if user_id.isdigit() else current_user.id,
             status="new"
         )
         
@@ -122,7 +124,7 @@ async def create_issue(
                 center_lat=latitude,
                 center_lon=longitude,
                 issue_count=1,
-                priority="medium",
+                priority=calculate_priority(1, category, 0, 0),
                 status="new",
                 title=title,
                 district=district
@@ -155,7 +157,7 @@ def get_issues(
     status: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     query = db.query(Issue)
     
@@ -168,14 +170,20 @@ def get_issues(
     return issues
 
 @router.get("/issues/{issue_id}")
-def get_issue(issue_id: int, db: Session = Depends(get_db)):
+def get_issue(
+    issue_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     issue = db.query(Issue).filter(Issue.id == issue_id).first()
     if not issue:
         raise HTTPException(status_code=404, detail="Проблема не найдена")
     return issue
 
 @router.get("/clusters")
-def get_clusters(db: Session = Depends(get_db)):
+def get_clusters(
+    db: Session = Depends(get_db),
+):
     clusters = db.query(Cluster).all()
     return [
         {
@@ -192,13 +200,128 @@ def get_clusters(db: Session = Depends(get_db)):
     ]
 
 @router.post("/issues/{issue_id}/vote")
-def vote_issue(issue_id: int, user_id: int, db: Session = Depends(get_db)):
+def vote_issue(
+    issue_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     issue = db.query(Issue).filter(Issue.id == issue_id).first()
     if not issue:
         raise HTTPException(status_code=404, detail="Проблема не найдена")
     
-    # TODO: добавить таблицу votes
     issue.votesCount = (issue.votesCount or 0) + 1
     db.commit()
     
     return {"success": True, "message": "Голос учтен"}
+
+@router.put("/issues/{issue_id}/status")
+def update_issue_status(
+    issue_id: int,
+    status_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    issue = db.query(Issue).filter(Issue.id == issue_id).first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    
+    old_status = issue.status
+    issue.status = status_data.get("status", issue.status)
+    db.commit()
+    
+    # Обновляем статус кластера
+    if issue.cluster_id:
+        cluster = db.query(Cluster).filter(Cluster.id == issue.cluster_id).first()
+        if cluster:
+            # Получаем все проблемы в кластере
+            all_issues = db.query(Issue).filter(Issue.cluster_id == cluster.id).all()
+            
+            # Определяем новый статус кластера
+            all_resolved = all(i.status == "resolved" for i in all_issues)
+            any_in_progress = any(i.status == "in_progress" for i in all_issues)
+            any_confirmed = any(i.status == "confirmed" for i in all_issues)
+            any_new = any(i.status == "new" for i in all_issues)
+            
+            if all_resolved:
+                cluster.status = "resolved"
+            elif any_in_progress:
+                cluster.status = "in_progress"
+            elif any_confirmed:
+                cluster.status = "confirmed"
+            elif any_new:
+                cluster.status = "new"
+            
+            db.commit()
+            print(f"Cluster {cluster.id} status updated to: {cluster.status}")
+    
+    return {"success": True, "message": "Status updated"}
+
+@router.put("/clusters/{cluster_id}/status")
+def update_cluster_status(
+    cluster_id: int,
+    status_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    cluster = db.query(Cluster).filter(Cluster.id == cluster_id).first()
+    if not cluster:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+    
+    cluster.status = status_data.get("status", cluster.status)
+    db.commit()
+    
+    # Также обновляем все проблемы в кластере (опционально)
+    if status_data.get("sync_issues", False):
+        issues = db.query(Issue).filter(Issue.cluster_id == cluster_id).all()
+        for issue in issues:
+            issue.status = cluster.status
+        db.commit()
+    
+    return {"success": True, "message": "Status updated"}
+
+def calculate_priority(issue_count: int, category: str, days_old: int, votes: int) -> str:
+    """
+    Расчет приоритета кластера:
+    - Critical (красный): более 10 жалоб ИЛИ аварийная категория ИЛИ более 7 дней
+    - Medium (желтый): 3-10 жалоб ИЛИ 3-7 дней
+    - Low (зеленый): менее 3 жалоб ИЛИ менее 3 дней
+    """
+    # Категории с повышенным приоритетом
+    high_priority_categories = ["light", "water", "electricity"]
+    
+    # Базовый счет
+    score = 0
+    
+    # Количество жалоб
+    if issue_count >= 10:
+        score += 30
+    elif issue_count >= 5:
+        score += 20
+    elif issue_count >= 3:
+        score += 10
+    
+    # Категория
+    if category in high_priority_categories:
+        score += 25
+    
+    # Время существования
+    if days_old >= 7:
+        score += 25
+    elif days_old >= 3:
+        score += 15
+    
+    # Голоса
+    if votes >= 20:
+        score += 15
+    elif votes >= 10:
+        score += 10
+    elif votes >= 5:
+        score += 5
+    
+    # Определяем приоритет
+    if score >= 50:
+        return "critical"
+    elif score >= 25:
+        return "medium"
+    else:
+        return "low"

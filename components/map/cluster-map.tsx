@@ -20,8 +20,8 @@ interface ClusterMapProps {
 
 export function ClusterMap({
   clusters,
-  center = [37.775, -122.42],
-  zoom = 13,
+  center = [43.2389, 76.8897],
+  zoom = 12,
   onClusterClick,
   className = "",
   clickToPlace = false,
@@ -62,18 +62,18 @@ export function ClusterMap({
       map.remove()
       mapInstanceRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [center, zoom, clickToPlace, onMapClick])
 
   // Update cluster markers
   useEffect(() => {
     if (!mapInstanceRef.current || !isReady) return
 
-    // Clear old markers
     markersRef.current.forEach((m) => m.remove())
     markersRef.current = []
 
     clusters.forEach((cluster) => {
+      if (!cluster.latitude || !cluster.longitude) return
+      
       const color = getPriorityColor(cluster.priority)
       const size = getMarkerSize(cluster.complaintsCount)
       const cat = categories.find((c) => c.id === cluster.categoryId)
@@ -94,7 +94,6 @@ export function ClusterMap({
           box-shadow: 0 2px 8px ${color}80;
           border: 2px solid white;
           cursor: pointer;
-          transition: transform 0.2s;
         " title="${cluster.title}">${cluster.complaintsCount}</div>`,
         iconSize: [size, size],
         iconAnchor: [size / 2, size / 2],
