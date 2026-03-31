@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
@@ -7,6 +7,8 @@ from api import issues
 from api import ai
 from api import auth
 from api import feedback
+from database import SessionLocal 
+from models import Cluster, Issue
 from apscheduler.schedulers.background import BackgroundScheduler
 # Создаем папку для uploads, если её нет
 os.makedirs("uploads", exist_ok=True)
@@ -25,6 +27,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_user_to_state(request: Request, call_next):
+    # Пробуем получить user из токена (если есть)
+    from auth import get_current_user
+    from database import SessionLocal
+    from sqlalchemy.orm import Session
+    from fastapi import Depends
+    
+    # Это упрощенная версия - лучше использовать Depends
+    response = await call_next(request)
+    return response
 
 # Подключаем статику для загруженных фото
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
@@ -7,7 +7,7 @@ import math
 from datetime import datetime
 from pathlib import Path
 from auth import get_current_user, get_current_admin
-
+from rate_limiter import rate_limit
 # Импортируем из наших файлов
 from database import SessionLocal
 from models import Issue, Cluster, User
@@ -32,9 +32,10 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-# Создание новой проблемы
 @router.post("/issues")
+@rate_limit(limit=5, window=3600)
 async def create_issue(
+    request: Request, 
     title: str = Form(...),
     description: str = Form(None),
     category: str = Form(...),
@@ -51,7 +52,7 @@ async def create_issue(
         photo_urls = []
         photo_hash = None
 
-        # Сохраняем фото если есть
+
         if photos and photos[0].filename:
             upload_dir = Path("uploads")
             upload_dir.mkdir(exist_ok=True)

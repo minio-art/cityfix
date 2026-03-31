@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from auth import get_password_hash, verify_password, create_access_token, get_current_user
 from database import get_db
 from models import User
-
+from rate_limiter import rate_limit
 router = APIRouter()
 
 class UserCreate(BaseModel):
@@ -32,7 +32,8 @@ class UserResponse(BaseModel):
     phone: str
 
 @router.post("/register", response_model=Token)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+@rate_limit(limit=3, window=3600)
+def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(
         (User.email == user_data.email) | (User.username == user_data.username)
     ).first()
@@ -72,7 +73,8 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     }
 
 @router.post("/login", response_model=Token)
-def login(user_data: UserLogin, db: Session = Depends(get_db)):
+@rate_limit(limit=10, window=3600)
+def login(request: Request, user_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == user_data.username).first()
     
     if not user or not verify_password(user_data.password, user.password_hash):
