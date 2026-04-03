@@ -51,6 +51,7 @@ export interface Cluster {
   status: Status
   problemIds: string[]
   complaintsCount: number
+  votesCount: number
   district: string
   title: string
   createdAt: string

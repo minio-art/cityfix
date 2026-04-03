@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request,status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
@@ -10,19 +10,21 @@ from auth import get_current_user, get_current_admin
 from rate_limiter import rate_limit
 # Импортируем из наших файлов
 from database import SessionLocal
-from models import Issue, Cluster, User
+from models import Issue, Cluster, User,Vote
 from ai_model import CityFixAIModel
+#from database import get_db  # Импортируем get_db из database
+
 ai_model = CityFixAIModel()
 router = APIRouter()
 
 # Зависимость для получения сессии БД
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
+def get_db():
+     db = SessionLocal()
+     try:
+         yield db
+     finally:
+        db.close()
 # Функция для расчета расстояния между координатами (в км)
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
@@ -31,6 +33,39 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     a = math.sin(dlat/2) * math.sin(dlat/2) + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2) * math.sin(dlon/2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
+
+
+
+@router.get("/issues/me")
+def get_my_issues(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get issues created by current user"""
+    try:
+        print(f"Getting issues for user_id: {current_user.id}")
+        issues = db.query(Issue).filter(Issue.user_id == current_user.id).all()
+        print(f"Found {len(issues)} issues")
+        # Преобразуем в словари для JSON
+        return [
+            {
+                "id": i.id,
+                "title": i.title,
+                "description": i.description,
+                "category": i.category,
+                "district": i.district,
+                "latitude": i.latitude,
+                "longitude": i.longitude,
+                "address": i.address,
+                "status": i.status,
+                "votesCount": i.votesCount or 0,
+                "created_at": i.created_at.isoformat() if i.created_at else None
+            }
+            for i in issues
+        ]
+    except Exception as e:
+        print(f"Error in get_my_issues: {e}")
+        return []
 
 @router.post("/issues")
 @rate_limit(limit=5, window=3600)
@@ -182,38 +217,96 @@ def get_issue(
     return issue
 
 @router.get("/clusters")
-def get_clusters(
-    db: Session = Depends(get_db),
-):
+def get_clusters(db: Session = Depends(get_db)):
     clusters = db.query(Cluster).all()
-    return [
-        {
-            "id": c.id,
-            "position": [c.center_lat, c.center_lon],
-            "type": c.category,
-            "priority": c.priority,
-            "count": c.issue_count,
-            "status": c.status,
-            "title": c.title,
-            "district": c.district
-        }
-        for c in clusters
-    ]
-
+    result = []
+    
+    for cluster in clusters:
+        # Получаем все проблемы в кластере
+        issues = db.query(Issue).filter(Issue.cluster_id == cluster.id).all()
+        
+        # Суммируем голоса
+        total_votes = sum(issue.votesCount or 0 for issue in issues)
+        
+        result.append({
+            "id": cluster.id,
+            "position": [cluster.center_lat, cluster.center_lon],
+            "type": cluster.category,
+            "priority": cluster.priority,
+            "count": cluster.issue_count,
+            "votesCount": total_votes,  # Сумма голосов всех проблем в кластере
+            "status": cluster.status,
+            "title": cluster.title,
+            "district": cluster.district
+        })
+    
+    return result
 @router.post("/issues/{issue_id}/vote")
 def vote_issue(
     issue_id: int, 
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    # Проверяем, существует ли проблема
     issue = db.query(Issue).filter(Issue.id == issue_id).first()
     if not issue:
-        raise HTTPException(status_code=404, detail="Проблема не найдена")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Проблема не найдена"
+        )
     
+    # Проверяем, голосовал ли уже пользователь
+    existing_vote = db.query(Vote).filter(
+        Vote.user_id == current_user.id,
+        Vote.issue_id == issue_id
+    ).first()
+    
+    if existing_vote:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Вы уже голосовали за эту проблему"
+        )
+    
+    # Создаем запись о голосе
+    new_vote = Vote(
+        user_id=current_user.id,
+        issue_id=issue_id
+    )
+    db.add(new_vote)
+    
+    # Увеличиваем счетчик голосов
     issue.votesCount = (issue.votesCount or 0) + 1
     db.commit()
     
-    return {"success": True, "message": "Голос учтен"}
+    # Обновляем приоритет кластера
+    if issue.cluster_id:
+        cluster = db.query(Cluster).filter(Cluster.id == issue.cluster_id).first()
+        if cluster:
+            cluster_issues = db.query(Issue).filter(Issue.cluster_id == cluster.id).all()
+            total_votes = sum(i.votesCount or 0 for i in cluster_issues)
+            
+            # Вычисляем возраст кластера
+            now = datetime.utcnow()
+            if cluster.created_at:
+                created_at = cluster.created_at.replace(tzinfo=None)
+                days_old = (now - created_at).days
+            else:
+                days_old = 0
+            
+            new_priority = calculate_priority(
+                len(cluster_issues),
+                cluster.category,
+                days_old,
+                total_votes
+            )
+            cluster.priority = new_priority
+            db.commit()
+    
+    return {
+        "success": True, 
+        "message": "Голос учтен",
+        "votesCount": issue.votesCount
+    }
 
 @router.put("/issues/{issue_id}/status")
 def update_issue_status(
@@ -326,3 +419,7 @@ def calculate_priority(issue_count: int, category: str, days_old: int, votes: in
         return "medium"
     else:
         return "low"
+    
+
+
+

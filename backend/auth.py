@@ -1,26 +1,29 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import User
+import hashlib
+import os
 
 # Настройки JWT
-SECRET_KEY = "your-secret-key-change-this-in-production"  # В продакшене использовать переменные окружения
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 часа
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Временное решение - используем SHA256 вместо bcrypt
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plain password against a hashed password"""
+    return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+
+def get_password_hash(password: str) -> str:
+    """Hash a password using SHA256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

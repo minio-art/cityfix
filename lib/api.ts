@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const API_URL = "http://localhost:8001"
 
 // ========== АУТЕНТИФИКАЦИЯ ==========
 
@@ -83,6 +83,7 @@ export async function getCurrentUser() {
   const response = await fetch(`${API_URL}/api/auth/me`, {
     headers: { 'Authorization': `Bearer ${token}` }
   })
+
   
   if (!response.ok) {
     clearAuthToken()
@@ -91,6 +92,55 @@ export async function getCurrentUser() {
   
   return response.json()
 }
+
+export async function getUserReports() {
+  const token = getAuthToken()
+  console.log('🔍 getUserReports - token exists:', !!token)
+  if (!token) return []
+  
+  try {
+    console.log('📡 Fetching from:', `${API_URL}/api/issues/me`)
+    const response = await fetch(`${API_URL}/api/issues/me`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    console.log('📡 Response status:', response.status)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Failed:', response.status, errorText)
+      return []
+    }
+    
+    const data = await response.json()
+    console.log('✅ Reports received:', data.length)
+    return data
+  } catch (error) {
+    console.error("❌ Error fetching user reports:", error)
+    return []
+  }
+}
+
+export async function getUserVotes() {
+  const token = getAuthToken()
+  if (!token) return []
+  
+  try {
+    const response = await fetch(`${API_URL}/api/users/me/votes`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    
+    if (!response.ok) return []
+    return response.json()
+  } catch (error) {
+    console.error("Error fetching user votes:", error)
+    return []
+  }
+}
+
 
 export async function logout() {
   clearAuthToken()
@@ -224,3 +274,4 @@ export async function voteIssue(issueId: string, userId: string) {
     throw error
   }
 }
+

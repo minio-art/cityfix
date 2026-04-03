@@ -123,3 +123,30 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* globals.css */
+.cluster-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  padding: 0;
+}
+
+.cluster-popup .leaflet-popup-content {
+  margin: 12px;
+  min-width: 240px;
+}
+
+.cluster-popup button {
+  transition: all 0.2s ease;
+}
+
+.cluster-popup button:active {
+  transform: scale(0.98);
+}
+
+.vote-button {
+  transition: all 0.2s ease;
+}
+
+.vote-button:hover:not(:disabled) {
+  background: #1976d2 !important;
+}

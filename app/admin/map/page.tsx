@@ -131,7 +131,7 @@ export default function AdminMapPage() {
 
   async function updateClusterStatus(clusterId: number, newStatus: string) {
     try {
-      const response = await fetch(`http://localhost:8000/api/clusters/${clusterId}/status`, {
+      const response = await fetch(`http://localhost:8001/api/clusters/${clusterId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -233,4 +233,6 @@ export default function AdminMapPage() {
       </div>
     </div>
   )
+
+  
 }

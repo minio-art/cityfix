@@ -3,6 +3,9 @@
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
 import { MobileMenu } from "@/components/mobile-menu"
+import { Toaster } from "react-hot-toast"
+
+
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (

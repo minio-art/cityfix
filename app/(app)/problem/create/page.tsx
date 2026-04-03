@@ -58,7 +58,7 @@ export default function CreateProblemPage() {
     formData.append('photo', file)
 
     try {
-      const response = await fetch('http://localhost:8000/api/ai/analyze', {
+      const response = await fetch('http://localhost:8001/api/ai/analyze', {
         method: 'POST',
         body: formData,
       })

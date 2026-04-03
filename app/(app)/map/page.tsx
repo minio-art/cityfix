@@ -8,6 +8,10 @@ import { getClusters } from "@/lib/api"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { SlidersHorizontal } from "lucide-react"
+import { ClusterMap } from "@/components/map/cluster-map"
+
+// В вашем компоненте, где используется карта
+
 
 interface ApiCluster {
   id: number
@@ -46,32 +50,42 @@ export default function MapPage() {
     fetchClusters()
   }, [])
 
-  async function fetchClusters() {
-    try {
-      const data: ApiCluster[] = await getClusters()
-      
-      const formatted: MapCluster[] = data.map((item) => ({
-        id: String(item.id),
-        categoryId: item.type,
-        latitude: item.position[0],
-        longitude: item.position[1],
-        radius: 2,
-        priority: item.priority,
-        status: item.status,
-        problemIds: [],
-        complaintsCount: item.count,
-        district: item.district,
-        title: item.title,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }))
-      
-      setAllClusters(formatted)
-    } catch (error) {
-      console.error('Ошибка загрузки:', error)
-    } finally {
-      setLoading(false)
-    }
+ async function fetchClusters() {
+  try {
+    const data: ApiCluster[] = await getClusters()
+    
+    const formatted: MapCluster[] = data.map((item) => ({
+      id: String(item.id),
+      categoryId: item.type,
+      latitude: item.position[0],
+      longitude: item.position[1],
+      radius: 2,
+      priority: item.priority,
+      status: item.status,
+      problemIds: [],
+      complaintsCount: item.count,
+      votesCount: item.votesCount || 0,  // ✅ Добавьте
+      district: item.district,
+      title: item.title,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }))
+    
+    setAllClusters(formatted)
+  } catch (error) {
+    console.error('Ошибка загрузки:', error)
+  } finally {
+    setLoading(false)
+  }
+}
+
+  const handleVoteSuccess = (clusterId: string, newVoteCount: number) => {
+    // Обновляем локальное состояние
+    setAllClusters(prev => prev.map(c => 
+      c.id === clusterId 
+        ? { ...c, votesCount: newVoteCount }
+        : c
+    ))
   }
 
   // Применяем фильтры к кластерам
@@ -153,3 +167,4 @@ export default function MapPage() {
     </div>
   )
 }
+
