@@ -74,3 +74,12 @@ class Cluster(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     issues = relationship("Issue", back_populates="cluster", cascade="all, delete-orphan")
+
+class Comment(Base):
+    __tablename__ = "comments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    issue_id = Column(Integer, ForeignKey("issues.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    text = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

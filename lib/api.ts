@@ -84,7 +84,6 @@ export async function getCurrentUser() {
     headers: { 'Authorization': `Bearer ${token}` }
   })
 
-  
   if (!response.ok) {
     clearAuthToken()
     return null
@@ -95,11 +94,9 @@ export async function getCurrentUser() {
 
 export async function getUserReports() {
   const token = getAuthToken()
-  console.log('🔍 getUserReports - token exists:', !!token)
   if (!token) return []
   
   try {
-    console.log('📡 Fetching from:', `${API_URL}/api/issues/me`)
     const response = await fetch(`${API_URL}/api/issues/me`, {
       headers: { 
         'Authorization': `Bearer ${token}`,
@@ -107,24 +104,16 @@ export async function getUserReports() {
       }
     })
     
-    console.log('📡 Response status:', response.status)
-    
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ Failed:', response.status, errorText)
       return []
     }
     
-    const data = await response.json()
-    console.log('✅ Reports received:', data.length)
-    return data
+    return await response.json()
   } catch (error) {
-    console.error("❌ Error fetching user reports:", error)
+    console.error("Error fetching user reports:", error)
     return []
   }
 }
-
-
 
 export async function logout() {
   clearAuthToken()
@@ -147,7 +136,8 @@ export async function createProblem(formData: FormData) {
     })
 
     if (!response.ok) {
-      throw new Error("Ошибка при создании проблемы")
+      const error = await response.json()
+      throw new Error(error.detail || "Ошибка при создании проблемы")
     }
 
     return await response.json()
@@ -166,51 +156,24 @@ export async function getClusters(bounds?: { sw: [number, number]; ne: [number, 
       url += `?bounds=${sw[0]},${sw[1]},${ne[0]},${ne[1]}`
     }
     
-    console.log('🌐 [getClusters] Fetching from:', url)
     const response = await fetch(url)
     
-    console.log('🌐 [getClusters] Response status:', response.status)
-    console.log('🌐 [getClusters] Response OK:', response.ok)
-    
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('🌐 [getClusters] Error response:', errorText)
       throw new Error("Ошибка при получении кластеров")
     }
     
     const data = await response.json()
-    console.log('🌐 [getClusters] Raw response type:', typeof data)
-    console.log('🌐 [getClusters] Is array:', Array.isArray(data))
-    console.log('🌐 [getClusters] Data:', JSON.stringify(data, null, 2))
     
-    // Если data - это объект с полем clusters или data
     if (data && typeof data === 'object' && !Array.isArray(data)) {
-      if (data.clusters && Array.isArray(data.clusters)) {
-        console.log('🌐 [getClusters] Found clusters array in data.clusters')
-        return data.clusters
-      }
-      if (data.data && Array.isArray(data.data)) {
-        console.log('🌐 [getClusters] Found data array in data.data')
-        return data.data
-      }
-      if (data.items && Array.isArray(data.items)) {
-        console.log('🌐 [getClusters] Found items array in data.items')
-        return data.items
-      }
-      console.warn('🌐 [getClusters] Response is object but no array found, returning empty array')
+      if (data.clusters && Array.isArray(data.clusters)) return data.clusters
+      if (data.data && Array.isArray(data.data)) return data.data
+      if (data.items && Array.isArray(data.items)) return data.items
       return []
     }
     
-    // Если это массив
-    if (Array.isArray(data)) {
-      console.log('🌐 [getClusters] Returning array of length:', data.length)
-      return data
-    }
-    
-    console.warn('🌐 [getClusters] Unexpected response format, returning empty array')
-    return []
+    return Array.isArray(data) ? data : []
   } catch (error) {
-    console.error("🌐 [getClusters] API Error:", error)
+    console.error("API Error:", error)
     return []
   }
 }
@@ -297,11 +260,9 @@ export async function voteIssue(issueId: string, userId: string) {
 
 export async function getUserVotes() {
   const token = getAuthToken()
-  console.log('🔍 getUserVotes - token exists:', !!token)
   if (!token) return []
   
   try {
-    console.log('📡 Fetching votes from:', `${API_URL}/api/users/me/votes`)
     const response = await fetch(`${API_URL}/api/users/me/votes`, {
       headers: { 
         'Authorization': `Bearer ${token}`,
@@ -309,19 +270,91 @@ export async function getUserVotes() {
       }
     })
     
-    console.log('📡 Response status:', response.status)
-    
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ Failed:', response.status, errorText)
       return []
     }
     
-    const data = await response.json()
-    console.log('✅ Voted reports received:', data.length)
-    return data
+    return await response.json()
   } catch (error) {
-    console.error("❌ Error fetching user votes:", error)
+    console.error("Error fetching user votes:", error)
     return []
   }
+}
+
+// ========== КОММЕНТАРИИ ==========
+
+export async function getComments(issueId: string) {
+  const token = getAuthToken()
+  const headers: HeadersInit = {}
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
+  try {
+    const response = await fetch(`${API_URL}/api/issues/${issueId}/comments`, { headers })
+    if (!response.ok) throw new Error("Ошибка при получении комментариев")
+    return await response.json()
+  } catch (error) {
+    console.error("API Error:", error)
+    return []
+  }
+}
+
+export async function addComment(issueId: string, text: string, userId: string) {
+  const token = getAuthToken()
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
+  const response = await fetch(`${API_URL}/api/issues/${issueId}/comments`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ text, user_id: userId }),
+  })
+  
+  if (!response.ok) throw new Error("Ошибка при добавлении комментария")
+  return await response.json()
+}
+
+// ========== ФОТО "ПОСЛЕ" ==========
+
+export async function uploadAfterPhoto(issueId: string, formData: FormData) {
+  const token = getAuthToken()
+  const headers: HeadersInit = {}
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
+  const response = await fetch(`${API_URL}/api/issues/${issueId}/after-photo`, {
+    method: "POST",
+    headers,
+    body: formData,
+  })
+  
+  if (!response.ok) throw new Error("Ошибка при загрузке фото")
+  return await response.json()
+}
+
+// ========== СТАТУС ==========
+
+export async function updateIssueStatus(issueId: string, status: string) {
+  const token = getAuthToken()
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  
+  const response = await fetch(`${API_URL}/api/issues/${issueId}/status`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ status }),
+  })
+  
+  if (!response.ok) throw new Error("Ошибка при обновлении статуса")
+  return await response.json()
 }

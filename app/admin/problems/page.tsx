@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner"
 import { Download, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { getIssues } from "@/lib/api"
+import { useRouter } from "next/navigation"
 
 const PAGE_SIZE = 8
 
@@ -37,6 +38,7 @@ const priorityColors: Record<string, string> = {
 }
 
 export default function AdminProblemsPage() {
+  const router = useRouter()
   const { user } = useAuth()
   const [problems, setProblems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -263,22 +265,29 @@ export default function AdminProblemsPage() {
             </TableHeader>
             <TableBody>
               {pageData.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <Checkbox checked={selectedIds.includes(p.id)} onCheckedChange={() => toggleSelect(p.id)} />
+                <TableRow 
+                  key={p.id} 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => router.push(`/problem/${p.id}`)}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.includes(p.id)}
+                      onCheckedChange={() => toggleSelect(p.id)}
+                    />
                   </TableCell>
                   <TableCell className="font-medium">{p.title}</TableCell>
                   <TableCell>{p.category}</TableCell>
                   <TableCell>
-                    <Badge className={statusColors[p.status] || "bg-gray-100"}>{p.status}</Badge>
+                    <Badge className={statusColors[p.status]}>{p.status}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge className={priorityColors[p.priority] || "bg-gray-100"}>{p.priority}</Badge>
+                    <Badge className={priorityColors[p.priority]}>{p.priority}</Badge>
                   </TableCell>
                   <TableCell>{p.district}</TableCell>
                   <TableCell className="text-right">{p.votesCount || 0}</TableCell>
                   <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Select value={p.status} onValueChange={(v) => updateStatus(p.id, v)}>
                       <SelectTrigger className="w-28 h-8">
                         <SelectValue />

@@ -10,7 +10,7 @@ from auth import get_current_user, get_current_admin
 from rate_limiter import rate_limit
 # Импортируем из наших файлов
 from database import SessionLocal
-from models import Issue, Cluster, User,Vote
+from models import Issue, Cluster, User,Vote, Comment
 from ai_model import CityFixAIModel
 #from database import get_db  # Импортируем get_db из database
 
@@ -468,3 +468,77 @@ def get_my_votes(
         import traceback
         traceback.print_exc()
         return []
+    
+# Добавь эти эндпоинты в файл backend/api/issues.py
+
+# Получить комментарии
+@router.get("/issues/{issue_id}/comments")
+def get_comments(
+    issue_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    comments = db.query(Comment).filter(Comment.issue_id == issue_id).order_by(Comment.created_at.desc()).all()
+    
+    # Добавляем информацию о пользователе
+    result = []
+    for comment in comments:
+        user = db.query(User).filter(User.id == comment.user_id).first()
+        result.append({
+            "id": comment.id,
+            "text": comment.text,
+            "created_at": comment.created_at,
+            "user_id": comment.user_id,
+            "author_name": user.name if user else user.email if user else "Пользователь",
+            "user_email": user.email if user else None
+        })
+    
+    return result
+
+# Добавить комментарий
+@router.post("/issues/{issue_id}/comments")
+def add_comment(
+    issue_id: int,
+    comment_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    new_comment = Comment(
+        issue_id=issue_id,
+        user_id=current_user.id,
+        text=comment_data.get("text")
+    )
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+    return new_comment
+
+# Загрузить фото "После"
+@router.post("/issues/{issue_id}/after-photo")
+async def upload_after_photo(
+    issue_id: int,
+    photo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    issue = db.query(Issue).filter(Issue.id == issue_id).first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    
+    # Сохраняем фото
+    upload_dir = Path("uploads")
+    upload_dir.mkdir(exist_ok=True)
+    
+    file_ext = Path(photo.filename).suffix
+    file_name = f"after_{issue_id}_{uuid.uuid4()}{file_ext}"
+    file_path = upload_dir / file_name
+    
+    content = await photo.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+    
+    issue.photo_after = f"/uploads/{file_name}"
+    db.commit()
+    
+    return {"success": True, "photo_url": issue.photo_after}
+

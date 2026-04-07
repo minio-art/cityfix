@@ -29,7 +29,7 @@ app = FastAPI(
 # Настройка CORS - ДОЛЖНА БЫТЬ ПЕРВОЙ!
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Временно разрешаем все для теста
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # Временно разрешаем все для теста
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

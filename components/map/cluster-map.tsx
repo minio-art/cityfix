@@ -45,7 +45,7 @@ export function ClusterMap({
   const markersRef = useRef<L.Marker[]>([])
   const [isReady, setIsReady] = useState(false)
   const [voting, setVoting] = useState<string | null>(null)
-  const [votedClusters, setVotedClusters] = useState<Set<string>>(new Set()) // ✅ Добавлено
+  const [votedClusters, setVotedClusters] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -89,8 +89,6 @@ export function ClusterMap({
         return
       }
 
-      console.log(`Voting for issue ID: ${issueId}`)
-
       const response = await fetch(`http://localhost:8001/api/issues/${issueId}/vote`, {
         method: "POST",
         headers: {
@@ -109,10 +107,8 @@ export function ClusterMap({
           errorMessage = response.statusText || errorMessage
         }
         
-        // ✅ Показываем понятное сообщение
         if (response.status === 400 && errorMessage.includes("уже голосовали")) {
           toast.error("❌ Вы уже голосовали за эту проблему")
-          // ✅ Добавляем в список проголосованных
           setVotedClusters(prev => new Set(prev).add(clusterId))
         } else {
           toast.error(errorMessage)
@@ -123,14 +119,12 @@ export function ClusterMap({
       const result = await response.json()
       toast.success("✅ Vote recorded!")
       
-      // ✅ Добавляем в список проголосованных
       setVotedClusters(prev => new Set(prev).add(clusterId))
       
       if (onVoteSuccess) {
         onVoteSuccess(clusterId, result.votesCount || (cluster.votesCount || 0) + 1)
       }
       
-      // Обновляем локальное состояние
       cluster.votesCount = result.votesCount
       
     } catch (error) {
@@ -154,70 +148,8 @@ export function ClusterMap({
       const size = getMarkerSize(cluster.complaintsCount)
       const cat = categories.find((c) => c.id === cluster.categoryId)
       const votes = cluster.votesCount || 0
-      const hasVoted = votedClusters.has(cluster.id) // ✅ Проверяем, голосовал ли пользователь
+      const hasVoted = votedClusters.has(cluster.id)
 
-      // Создаем HTML для попапа с кнопкой голосования
-      const popupContent = `
-        <div style="min-width: 220px; font-family: sans-serif; padding: 4px;">
-          <strong style="font-size: 14px; display: block; margin-bottom: 4px;">
-            ${cluster.title}
-          </strong>
-          <span style="font-size: 11px; color: #666; display: block; margin-bottom: 8px;">
-            ${cat?.name || cluster.categoryId} &middot; ${cluster.district}
-          </span>
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
-            <span style="font-size: 12px; color: ${color}; font-weight: 600;">
-              📊 ${cluster.complaintsCount} complaints
-            </span>
-            <span style="font-size: 12px; color: #2196f3; font-weight: 600;">
-              👍 ${votes} votes
-            </span>
-          </div>
-          <div style="margin-top: 12px; display: flex; gap: 8px;">
-            <button 
-              id="vote-btn-${cluster.id}"
-              class="vote-button"
-              data-cluster-id="${cluster.id}"
-              style="
-                flex: 1;
-                background: ${hasVoted ? '#4caf50' : (voting === cluster.id ? '#ccc' : '#2196f3')};
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 6px;
-                font-size: 12px;
-                cursor: ${hasVoted || voting === cluster.id ? 'default' : 'pointer'};
-                font-weight: 500;
-                transition: background 0.2s;
-              "
-              ${hasVoted ? 'disabled' : ''}
-            >
-              ${hasVoted ? '✓ Voted' : (voting === cluster.id ? '⏳ Voting...' : '👍 Vote')}
-            </button>
-            <button 
-              id="details-btn-${cluster.id}"
-              style="
-                flex: 1;
-                background: #4caf50;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 6px;
-                font-size: 12px;
-                cursor: pointer;
-                font-weight: 500;
-                transition: background 0.2s;
-              "
-              onmouseover="this.style.background='#45a049'"
-              onmouseout="this.style.background='#4caf50'"
-            >
-              📋 Details
-            </button>
-          </div>
-        </div>
-      `
-
-      // Добавляем индикатор голосов на маркер
       const icon = L.divIcon({
         className: "custom-cluster-marker",
         html: `<div style="
@@ -274,35 +206,87 @@ export function ClusterMap({
         iconAnchor: [size / 2, size / 2],
       })
 
+      const popupContent = `
+        <div style="min-width: 220px; font-family: sans-serif; padding: 4px;">
+          <strong style="font-size: 14px; display: block; margin-bottom: 4px;">
+            ${cluster.title}
+          </strong>
+          <span style="font-size: 11px; color: #666; display: block; margin-bottom: 8px;">
+            ${cat?.name || cluster.categoryId} &middot; ${cluster.district}
+          </span>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+            <span style="font-size: 12px; color: ${color}; font-weight: 600;">
+              📊 ${cluster.complaintsCount} complaints
+            </span>
+            <span style="font-size: 12px; color: #2196f3; font-weight: 600;">
+              👍 ${votes} votes
+            </span>
+          </div>
+          <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <button 
+              id="vote-btn-${cluster.id}"
+              class="vote-button"
+              data-cluster-id="${cluster.id}"
+              style="
+                flex: 1;
+                background: ${hasVoted ? '#4caf50' : (voting === cluster.id ? '#ccc' : '#2196f3')};
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                cursor: ${hasVoted || voting === cluster.id ? 'default' : 'pointer'};
+                font-weight: 500;
+              "
+              ${hasVoted ? 'disabled' : ''}
+            >
+              ${hasVoted ? '✓ Voted' : (voting === cluster.id ? '⏳ Voting...' : '👍 Vote')}
+            </button>
+            <a 
+              href="/problem/${cluster.id}"
+              style="..."
+              style="
+                flex: 1;
+                background: #4caf50;
+                color: white;
+                text-decoration: none;
+                text-align: center;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                cursor: pointer;
+                font-weight: 500;
+                display: inline-block;
+              "
+              onmouseover="this.style.background='#45a049'"
+              onmouseout="this.style.background='#4caf50'"
+            >
+              📋 Details
+            </a>
+          </div>
+        </div>
+      `
+
       const marker = L.marker([cluster.latitude, cluster.longitude], { icon })
         .addTo(mapInstanceRef.current!)
         .bindPopup(popupContent, { className: "cluster-popup" })
 
-      // Привязываем обработчики после открытия попапа
+      // Обработчик для кнопки Vote после открытия попапа
       marker.on("popupopen", () => {
         const voteBtn = document.getElementById(`vote-btn-${cluster.id}`)
-        const detailsBtn = document.getElementById(`details-btn-${cluster.id}`)
-        
-        if (voteBtn && !hasVoted) {
+        if (voteBtn && !hasVoted && voting !== cluster.id) {
           const newVoteBtn = voteBtn.cloneNode(true)
           voteBtn.parentNode?.replaceChild(newVoteBtn, voteBtn)
-          
           newVoteBtn.addEventListener("click", (e) => {
             e.stopPropagation()
-            if (voting !== cluster.id && !hasVoted) {
-              handleVote(cluster.id, cluster)
-            }
+            handleVote(cluster.id, cluster)
           })
         }
-        
-        if (detailsBtn) {
-          detailsBtn.onclick = (e) => {
-            e.stopPropagation()
-            if (onClusterClick) {
-              onClusterClick(cluster)
-              mapInstanceRef.current?.closePopup()
-            }
-          }
+      })
+
+      marker.on("click", () => {
+        if (onClusterClick) {
+          onClusterClick(cluster)
         }
       })
 
