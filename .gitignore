@@ -84,4 +84,4 @@ backend/__pycache__/
 *.swp
 *.swo
 *~
-.DS_Store
+.DS_Store*.tar.gz
