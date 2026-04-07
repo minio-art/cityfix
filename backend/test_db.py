@@ -1,5 +1,5 @@
 from database import engine, Base
-from models import Issue, Cluster
+from backend.models import Issue, Cluster
 
 try:
     # Попробуй создать таблицы

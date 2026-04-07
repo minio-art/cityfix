@@ -124,22 +124,6 @@ export async function getUserReports() {
   }
 }
 
-export async function getUserVotes() {
-  const token = getAuthToken()
-  if (!token) return []
-  
-  try {
-    const response = await fetch(`${API_URL}/api/users/me/votes`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    
-    if (!response.ok) return []
-    return response.json()
-  } catch (error) {
-    console.error("Error fetching user votes:", error)
-    return []
-  }
-}
 
 
 export async function logout() {
@@ -182,15 +166,51 @@ export async function getClusters(bounds?: { sw: [number, number]; ne: [number, 
       url += `?bounds=${sw[0]},${sw[1]},${ne[0]},${ne[1]}`
     }
     
+    console.log('🌐 [getClusters] Fetching from:', url)
     const response = await fetch(url)
     
+    console.log('🌐 [getClusters] Response status:', response.status)
+    console.log('🌐 [getClusters] Response OK:', response.ok)
+    
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('🌐 [getClusters] Error response:', errorText)
       throw new Error("Ошибка при получении кластеров")
     }
     
-    return await response.json()
+    const data = await response.json()
+    console.log('🌐 [getClusters] Raw response type:', typeof data)
+    console.log('🌐 [getClusters] Is array:', Array.isArray(data))
+    console.log('🌐 [getClusters] Data:', JSON.stringify(data, null, 2))
+    
+    // Если data - это объект с полем clusters или data
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      if (data.clusters && Array.isArray(data.clusters)) {
+        console.log('🌐 [getClusters] Found clusters array in data.clusters')
+        return data.clusters
+      }
+      if (data.data && Array.isArray(data.data)) {
+        console.log('🌐 [getClusters] Found data array in data.data')
+        return data.data
+      }
+      if (data.items && Array.isArray(data.items)) {
+        console.log('🌐 [getClusters] Found items array in data.items')
+        return data.items
+      }
+      console.warn('🌐 [getClusters] Response is object but no array found, returning empty array')
+      return []
+    }
+    
+    // Если это массив
+    if (Array.isArray(data)) {
+      console.log('🌐 [getClusters] Returning array of length:', data.length)
+      return data
+    }
+    
+    console.warn('🌐 [getClusters] Unexpected response format, returning empty array')
+    return []
   } catch (error) {
-    console.error("API Error:", error)
+    console.error("🌐 [getClusters] API Error:", error)
     return []
   }
 }
@@ -275,3 +295,33 @@ export async function voteIssue(issueId: string, userId: string) {
   }
 }
 
+export async function getUserVotes() {
+  const token = getAuthToken()
+  console.log('🔍 getUserVotes - token exists:', !!token)
+  if (!token) return []
+  
+  try {
+    console.log('📡 Fetching votes from:', `${API_URL}/api/users/me/votes`)
+    const response = await fetch(`${API_URL}/api/users/me/votes`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    console.log('📡 Response status:', response.status)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Failed:', response.status, errorText)
+      return []
+    }
+    
+    const data = await response.json()
+    console.log('✅ Voted reports received:', data.length)
+    return data
+  } catch (error) {
+    console.error("❌ Error fetching user votes:", error)
+    return []
+  }
+}

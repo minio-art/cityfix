@@ -1,5 +1,5 @@
 from database import SessionLocal
-from models import User
+from backend.models import User
 from auth import get_password_hash
 
 db = SessionLocal()

@@ -64,7 +64,7 @@ export default function AdminProblemsPage() {
 
   async function updateStatus(problemId: number, newStatus: string) {
     try {
-      const response = await fetch(`http://localhost:8000/api/issues/${problemId}/status`, {
+      const response = await fetch(`http://localhost:8001/api/issues/${problemId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

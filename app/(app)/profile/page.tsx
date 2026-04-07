@@ -139,7 +139,7 @@ export default function ProfilePage() {
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
                   You have not reported any problems yet.
-                  <Link href="/report" className="ml-2 text-primary hover:underline">
+                  <Link href="/problem/create" className="ml-2 text-primary hover:underline">
                     Create your first report
                   </Link>
                 </CardContent>

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request,status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session , joinedload
 from typing import List, Optional
 import os
 import uuid
@@ -141,7 +141,7 @@ async def create_issue(
             address=address,
             photo_before=",".join(photo_urls) if photo_urls else None,
             photo_hash=photo_hash,
-            user_id=int(user_id) if user_id.isdigit() else current_user.id,
+            user_id= current_user.id,
             status="new"
         )
         
@@ -423,3 +423,48 @@ def calculate_priority(issue_count: int, category: str, days_old: int, votes: in
 
 
 
+@router.get("/users/me/votes")
+def get_my_votes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get issues that current user has voted on"""
+    try:
+        print(f"Getting votes for user_id: {current_user.id}")
+        
+        # Получаем все голоса пользователя с предварительной загрузкой проблем
+        votes = db.query(Vote).filter(Vote.user_id == current_user.id).options(
+            joinedload(Vote.issue)
+        ).all()
+        
+        if not votes:
+            print("No votes found")
+            return []
+        
+        # Собираем проблемы из голосов
+        issues = []
+        for vote in votes:
+            if vote.issue:
+                issue = vote.issue
+                issues.append({
+                    "id": issue.id,
+                    "title": issue.title,
+                    "description": issue.description,
+                    "category": issue.category,
+                    "district": issue.district,
+                    "latitude": issue.latitude,
+                    "longitude": issue.longitude,
+                    "address": issue.address,
+                    "status": issue.status,
+                    "votesCount": issue.votesCount or 0,
+                    "created_at": issue.created_at.isoformat() if issue.created_at else None
+                })
+        
+        print(f"Found {len(issues)} voted issues")
+        return issues
+        
+    except Exception as e:
+        print(f"Error in get_my_votes: {e}")
+        import traceback
+        traceback.print_exc()
+        return []

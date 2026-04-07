@@ -8,10 +8,6 @@ import { getClusters } from "@/lib/api"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { SlidersHorizontal } from "lucide-react"
-import { ClusterMap } from "@/components/map/cluster-map"
-
-// В вашем компоненте, где используется карта
-
 
 interface ApiCluster {
   id: number
@@ -19,6 +15,7 @@ interface ApiCluster {
   type: string
   priority: string
   count: number
+  votesCount?: number
   status: string
   title: string
   district: string
@@ -34,6 +31,7 @@ interface MapCluster {
   status: string
   problemIds: string[]
   complaintsCount: number
+  votesCount: number
   district: string
   title: string
   address?: string
@@ -50,46 +48,58 @@ export default function MapPage() {
     fetchClusters()
   }, [])
 
- async function fetchClusters() {
-  try {
-    const data: ApiCluster[] = await getClusters()
-    
-    const formatted: MapCluster[] = data.map((item) => ({
-      id: String(item.id),
-      categoryId: item.type,
-      latitude: item.position[0],
-      longitude: item.position[1],
-      radius: 2,
-      priority: item.priority,
-      status: item.status,
-      problemIds: [],
-      complaintsCount: item.count,
-      votesCount: item.votesCount || 0,  // ✅ Добавьте
-      district: item.district,
-      title: item.title,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }))
-    
-    setAllClusters(formatted)
-  } catch (error) {
-    console.error('Ошибка загрузки:', error)
-  } finally {
-    setLoading(false)
-  }
-}
-
-  const handleVoteSuccess = (clusterId: string, newVoteCount: number) => {
-    // Обновляем локальное состояние
-    setAllClusters(prev => prev.map(c => 
-      c.id === clusterId 
-        ? { ...c, votesCount: newVoteCount }
-        : c
-    ))
+  async function fetchClusters() {
+    try {
+      console.log('🔄 Fetching clusters...')
+      const data: ApiCluster[] = await getClusters()
+      
+      console.log('📊 Raw API response:', data)
+      console.log('📊 Total clusters received:', data.length)
+      console.log('📊 Status distribution:', data.reduce((acc, c) => {
+        acc[c.status] = (acc[c.status] || 0) + 1
+        return acc
+      }, {} as Record<string, number>))
+      
+      const formatted: MapCluster[] = data.map((item) => ({
+        id: String(item.id),
+        categoryId: item.type,
+        latitude: item.position[0],
+        longitude: item.position[1],
+        radius: 2,
+        priority: item.priority,
+        status: item.status,
+        problemIds: [],
+        complaintsCount: item.count,
+        votesCount: item.votesCount || 0,
+        district: item.district,
+        title: item.title,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }))
+      
+      console.log('✅ Formatted clusters:', formatted.length)
+      console.log('✅ Statuses in formatted:', [...new Set(formatted.map(c => c.status))])
+      
+      setAllClusters(formatted)
+    } catch (error) {
+      console.error('❌ Ошибка загрузки:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Применяем фильтры к кластерам
   const filteredClusters = useMemo(() => {
+    console.log('\n=== 🎯 FILTERING CLUSTERS ===')
+    console.log('Total clusters before filter:', allClusters.length)
+    console.log('Current filters:', {
+      categories: state.filters.categories,
+      statuses: state.filters.statuses,
+      priorities: state.filters.priorities,
+      districts: state.filters.districts,
+      searchQuery: state.filters.searchQuery
+    })
+    
     let filtered = [...allClusters]
     
     // Фильтр по категориям
@@ -97,13 +107,27 @@ export default function MapPage() {
       filtered = filtered.filter(cluster => 
         state.filters.categories.includes(cluster.categoryId)
       )
+      console.log('After category filter:', filtered.length)
     }
     
     // Фильтр по статусам
     if (state.filters.statuses.length > 0) {
-      filtered = filtered.filter(cluster => 
-        state.filters.statuses.includes(cluster.status as any)
-      )
+      console.log('Filtering by statuses:', state.filters.statuses)
+      const beforeCount = filtered.length
+      filtered = filtered.filter(cluster => {
+        const matches = state.filters.statuses.includes(cluster.status as any)
+        if (!matches) {
+          console.log(`  ❌ Filtered out cluster ${cluster.id} with status "${cluster.status}"`)
+        }
+        return matches
+      })
+      console.log('After status filter:', filtered.length, `(removed ${beforeCount - filtered.length})`)
+      
+      // Показать оставшиеся статусы
+      const remainingStatuses = [...new Set(filtered.map(c => c.status))]
+      console.log('Remaining statuses:', remainingStatuses)
+    } else {
+      console.log('No status filters applied, showing all statuses:', [...new Set(filtered.map(c => c.status))])
     }
     
     // Фильтр по приоритетам
@@ -111,6 +135,7 @@ export default function MapPage() {
       filtered = filtered.filter(cluster => 
         state.filters.priorities.includes(cluster.priority as any)
       )
+      console.log('After priority filter:', filtered.length)
     }
     
     // Фильтр по районам
@@ -118,6 +143,7 @@ export default function MapPage() {
       filtered = filtered.filter(cluster => 
         state.filters.districts.includes(cluster.district)
       )
+      console.log('After district filter:', filtered.length)
     }
     
     // Поиск по тексту
@@ -128,7 +154,11 @@ export default function MapPage() {
         cluster.district?.toLowerCase().includes(query) ||
         cluster.categoryId?.toLowerCase().includes(query)
       )
+      console.log('After search filter:', filtered.length)
     }
+    
+    console.log('🎯 Final filtered clusters:', filtered.length)
+    console.log('================================\n')
     
     return filtered
   }, [allClusters, state.filters])
@@ -167,4 +197,3 @@ export default function MapPage() {
     </div>
   )
 }
-
