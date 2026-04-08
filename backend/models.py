@@ -46,6 +46,7 @@ class Issue(Base):
     longitude = Column(Float)
     address = Column(String)
     photo_before = Column(String, nullable=True)
+    photo_after = Column(String, nullable=True)
     photo_hash = Column(String, nullable=True)
     status = Column(String, default="new")
     cluster_id = Column(Integer, ForeignKey("clusters.id"), nullable=True)
