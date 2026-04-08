@@ -268,7 +268,7 @@ export default function AdminProblemsPage() {
                 <TableRow 
                   key={p.id} 
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => router.push(`/problem/${p.id}`)}
+                  onClick={() => router.push(`/admin/problem/${p.id}`)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
