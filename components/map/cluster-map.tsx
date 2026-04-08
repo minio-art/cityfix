@@ -7,6 +7,7 @@ import { getPriorityColor, getMarkerSize } from "@/lib/geo"
 import { categories } from "@/lib/mock-data"
 import { getAuthToken } from "@/lib/api"
 import { toast } from "react-hot-toast"
+import { useAuth } from "@/hooks/useAuth"
 
 interface Cluster {
   id: string
@@ -46,6 +47,7 @@ export function ClusterMap({
   const [isReady, setIsReady] = useState(false)
   const [voting, setVoting] = useState<string | null>(null)
   const [votedClusters, setVotedClusters] = useState<Set<string>>(new Set())
+  const { user } = useAuth() // Получаем информацию о пользователе
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -134,6 +136,16 @@ export function ClusterMap({
     }
   }
 
+  // Функция для получения правильного URL в зависимости от роли
+  const getProblemUrl = (clusterId: string) => {
+    // Если пользователь админ, открываем админскую страницу
+    if (user?.role === "admin") {
+      return `/admin/problem/${clusterId}`
+    }
+    // Иначе открываем обычную пользовательскую страницу
+    return `/problem/${clusterId}`
+  }
+
   // Update cluster markers
   useEffect(() => {
     if (!mapInstanceRef.current || !isReady) return
@@ -206,6 +218,9 @@ export function ClusterMap({
         iconAnchor: [size / 2, size / 2],
       })
 
+      const problemUrl = getProblemUrl(cluster.id)
+      const isAdmin = user?.role === "admin"
+      
       const popupContent = `
         <div style="min-width: 220px; font-family: sans-serif; padding: 4px;">
           <strong style="font-size: 14px; display: block; margin-bottom: 4px;">
@@ -243,11 +258,10 @@ export function ClusterMap({
               ${hasVoted ? '✓ Voted' : (voting === cluster.id ? '⏳ Voting...' : '👍 Vote')}
             </button>
             <a 
-              href="/problem/${cluster.id}"
-              style="..."
+              href="${problemUrl}"
               style="
                 flex: 1;
-                background: #4caf50;
+                background: ${isAdmin ? '#ff9800' : '#4caf50'};
                 color: white;
                 text-decoration: none;
                 text-align: center;
@@ -258,10 +272,10 @@ export function ClusterMap({
                 font-weight: 500;
                 display: inline-block;
               "
-              onmouseover="this.style.background='#45a049'"
-              onmouseout="this.style.background='#4caf50'"
+              onmouseover="this.style.background='${isAdmin ? '#e68900' : '#45a049'}'"
+              onmouseout="this.style.background='${isAdmin ? '#ff9800' : '#4caf50'}'"
             >
-              📋 Details
+              ${isAdmin ? '✏️ Edit' : '📋 Details'}
             </a>
           </div>
         </div>
@@ -292,7 +306,7 @@ export function ClusterMap({
 
       markersRef.current.push(marker)
     })
-  }, [clusters, isReady, onClusterClick, voting, votedClusters])
+  }, [clusters, isReady, onClusterClick, voting, votedClusters, user]) // Добавили user в зависимости
 
   return (
     <div
