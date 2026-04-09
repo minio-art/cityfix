@@ -51,6 +51,7 @@ export interface Cluster {
   status: Status
   problemIds: string[]
   complaintsCount: number
+  votesCount: number
   district: string
   title: string
   createdAt: string
@@ -98,4 +99,75 @@ export interface Notification {
   read: boolean
   createdAt: string
   link?: string
+}
+
+// ===== НОВЫЕ ТИПЫ ДЛЯ API =====
+
+export interface ApiCluster {
+  id: string
+  position: [number, number]
+  type: string
+  priority: Priority
+  count: number
+  status: Status
+}
+
+export interface ApiIssue {
+  id: string
+  title: string
+  description: string
+  category: string
+  district: string
+  latitude: number
+  longitude: number
+  address: string
+  photo_before: string
+  status: Status
+  priority: Priority
+  user_id: string
+  cluster_id: string | null
+  created_at: string
+}
+
+export interface ApiResponse<T> {
+  success: boolean
+  data?: T
+  error?: string
+  warning?: string
+  message?: string
+  issue_id?: string
+  cluster_id?: string
+  ai_suggestion?: {
+    category: string
+    confidence: number
+  }
+  duplicates?: Array<{
+    id: string
+    title: string
+    distance: number
+  }>
+}
+
+export interface CreateProblemData {
+  title: string
+  description: string
+  category: string
+  district: string
+  latitude: number
+  longitude: number
+  address: string
+  user_id: string
+  photos: File[]
+}
+
+export interface IssueFilters {
+  category?: string
+  status?: string
+  skip?: number
+  limit?: number
+}
+
+export interface MapBounds {
+  sw: [number, number]
+  ne: [number, number]
 }

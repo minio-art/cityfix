@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.gitignore
+README.md
+.env.local
+.env
+*.log
+.DS_Store
+backend/venv
+backend/__pycache__
+backend/.env
+*.pth
+.DS_Store
+.vscode
+.idea

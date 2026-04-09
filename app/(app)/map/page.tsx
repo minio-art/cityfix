@@ -1,47 +1,185 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useFilteredClusters } from "@/lib/store"
+import { useState, useEffect, useMemo } from "react"
+import { useApp } from "@/lib/store"
 import { MapContainer } from "@/components/map/map-container"
 import { MapFilters } from "@/components/map/map-filters"
-import { Button } from "@/components/ui/button"
+import { getClusters } from "@/lib/api"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Badge } from "@/components/ui/badge"
-import { PlusCircle, SlidersHorizontal } from "lucide-react"
-import type { Cluster } from "@/lib/types"
-import { categories } from "@/lib/mock-data"
-import { getPriorityLabel, getStatusLabel, getPriorityColor } from "@/lib/geo"
-import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { SlidersHorizontal } from "lucide-react"
+
+interface ApiCluster {
+  id: number
+  position: [number, number]
+  type: string
+  priority: string
+  count: number
+  votesCount?: number
+  status: string
+  title: string
+  district: string
+}
+
+interface MapCluster {
+  id: string
+  categoryId: string
+  latitude: number
+  longitude: number
+  radius: number
+  priority: string
+  status: string
+  problemIds: string[]
+  complaintsCount: number
+  votesCount: number
+  district: string
+  title: string
+  address?: string
+  createdAt: string
+  updatedAt: string
+}
 
 export default function MapPage() {
-  const clusters = useFilteredClusters()
-  const router = useRouter()
-  const [selectedCluster, setSelectedCluster] = useState<Cluster | null>(null)
+  const { state, dispatch } = useApp()
+  const [allClusters, setAllClusters] = useState<MapCluster[]>([])
+  const [loading, setLoading] = useState(true)
 
-  function handleClusterClick(cluster: Cluster) {
-    setSelectedCluster(cluster)
+  useEffect(() => {
+    fetchClusters()
+  }, [])
+
+  async function fetchClusters() {
+    try {
+      console.log('🔄 Fetching clusters...')
+      const data: ApiCluster[] = await getClusters()
+      
+      console.log('📊 Raw API response:', data)
+      console.log('📊 Total clusters received:', data.length)
+      console.log('📊 Status distribution:', data.reduce((acc, c) => {
+        acc[c.status] = (acc[c.status] || 0) + 1
+        return acc
+      }, {} as Record<string, number>))
+      
+      const formatted: MapCluster[] = data.map((item) => ({
+        id: String(item.id),
+        categoryId: item.type,
+        latitude: item.position[0],
+        longitude: item.position[1],
+        radius: 2,
+        priority: item.priority,
+        status: item.status,
+        problemIds: [],
+        complaintsCount: item.count,
+        votesCount: item.votesCount || 0,
+        district: item.district,
+        title: item.title,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }))
+      
+      console.log('✅ Formatted clusters:', formatted.length)
+      console.log('✅ Statuses in formatted:', [...new Set(formatted.map(c => c.status))])
+      
+      setAllClusters(formatted)
+    } catch (error) {
+      console.error('❌ Ошибка загрузки:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const cat = selectedCluster
-    ? categories.find((c) => c.id === selectedCluster.categoryId)
-    : null
+  // Применяем фильтры к кластерам
+  const filteredClusters = useMemo(() => {
+    console.log('\n=== 🎯 FILTERING CLUSTERS ===')
+    console.log('Total clusters before filter:', allClusters.length)
+    console.log('Current filters:', {
+      categories: state.filters.categories,
+      statuses: state.filters.statuses,
+      priorities: state.filters.priorities,
+      districts: state.filters.districts,
+      searchQuery: state.filters.searchQuery
+    })
+    
+    let filtered = [...allClusters]
+    
+    // Фильтр по категориям
+    if (state.filters.categories.length > 0) {
+      filtered = filtered.filter(cluster => 
+        state.filters.categories.includes(cluster.categoryId)
+      )
+      console.log('After category filter:', filtered.length)
+    }
+    
+    // Фильтр по статусам
+    if (state.filters.statuses.length > 0) {
+      console.log('Filtering by statuses:', state.filters.statuses)
+      const beforeCount = filtered.length
+      filtered = filtered.filter(cluster => {
+        const matches = state.filters.statuses.includes(cluster.status as any)
+        if (!matches) {
+          console.log(`  ❌ Filtered out cluster ${cluster.id} with status "${cluster.status}"`)
+        }
+        return matches
+      })
+      console.log('After status filter:', filtered.length, `(removed ${beforeCount - filtered.length})`)
+      
+      // Показать оставшиеся статусы
+      const remainingStatuses = [...new Set(filtered.map(c => c.status))]
+      console.log('Remaining statuses:', remainingStatuses)
+    } else {
+      console.log('No status filters applied, showing all statuses:', [...new Set(filtered.map(c => c.status))])
+    }
+    
+    // Фильтр по приоритетам
+    if (state.filters.priorities.length > 0) {
+      filtered = filtered.filter(cluster => 
+        state.filters.priorities.includes(cluster.priority as any)
+      )
+      console.log('After priority filter:', filtered.length)
+    }
+    
+    // Фильтр по районам
+    if (state.filters.districts.length > 0) {
+      filtered = filtered.filter(cluster => 
+        state.filters.districts.includes(cluster.district)
+      )
+      console.log('After district filter:', filtered.length)
+    }
+    
+    // Поиск по тексту
+    if (state.filters.searchQuery) {
+      const query = state.filters.searchQuery.toLowerCase()
+      filtered = filtered.filter(cluster => 
+        cluster.title?.toLowerCase().includes(query) ||
+        cluster.district?.toLowerCase().includes(query) ||
+        cluster.categoryId?.toLowerCase().includes(query)
+      )
+      console.log('After search filter:', filtered.length)
+    }
+    
+    console.log('🎯 Final filtered clusters:', filtered.length)
+    console.log('================================\n')
+    
+    return filtered
+  }, [allClusters, state.filters])
+
+  if (loading) {
+    return <div className="flex h-full items-center justify-center">Загрузка карты...</div>
+  }
 
   return (
     <div className="relative flex h-full">
-      {/* Desktop filters sidebar */}
       <div className="hidden w-72 shrink-0 border-r border-border lg:block">
         <MapFilters />
       </div>
 
-      {/* Map area */}
       <div className="relative flex-1">
         <MapContainer
-          clusters={clusters}
-          onClusterClick={handleClusterClick}
+          clusters={filteredClusters}
+          center={[43.2389, 76.8897]}
+          zoom={12}
         />
 
-        {/* Mobile filter trigger */}
         <div className="absolute left-3 top-3 z-[1000] lg:hidden">
           <Sheet>
             <SheetTrigger asChild>
@@ -55,68 +193,6 @@ export default function MapPage() {
             </SheetContent>
           </Sheet>
         </div>
-
-        {/* Add Problem FAB */}
-        <div className="absolute bottom-6 right-6 z-[1000]">
-          <Button asChild size="lg" className="gap-2 rounded-full shadow-lg">
-            <Link href="/problem/create">
-              <PlusCircle className="h-5 w-5" />
-              Report Problem
-            </Link>
-          </Button>
-        </div>
-
-        {/* Selected cluster card */}
-        {selectedCluster && (
-          <div className="absolute bottom-6 left-1/2 z-[1000] w-[calc(100%-3rem)] max-w-md -translate-x-1/2 rounded-xl border border-border bg-card p-4 shadow-xl lg:left-auto lg:right-6 lg:translate-x-0">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <h3 className="font-semibold text-foreground">
-                  {selectedCluster.title}
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {cat?.name} &middot; {selectedCluster.district}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedCluster(null)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <span className="sr-only">Close</span>
-                &times;
-              </button>
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <Badge
-                style={{
-                  backgroundColor: getPriorityColor(selectedCluster.priority),
-                  color: "white",
-                }}
-              >
-                {getPriorityLabel(selectedCluster.priority)}
-              </Badge>
-              <Badge variant="outline">
-                {getStatusLabel(selectedCluster.status)}
-              </Badge>
-              <span className="text-sm font-medium text-foreground">
-                {selectedCluster.complaintsCount} complaints
-              </span>
-            </div>
-            <div className="mt-3">
-              <Button
-                size="sm"
-                className="w-full"
-                onClick={() =>
-                  router.push(
-                    `/problem/${selectedCluster.problemIds[0]}`
-                  )
-                }
-              >
-                View Details
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

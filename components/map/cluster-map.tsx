@@ -3,9 +3,23 @@
 import { useEffect, useRef, useState } from "react"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
-import type { Cluster } from "@/lib/types"
 import { getPriorityColor, getMarkerSize } from "@/lib/geo"
 import { categories } from "@/lib/mock-data"
+import { getAuthToken } from "@/lib/api"
+import { toast } from "react-hot-toast"
+
+interface Cluster {
+  id: string
+  categoryId: string
+  latitude: number
+  longitude: number
+  priority: string
+  status: string
+  complaintsCount: number
+  votesCount?: number
+  district: string
+  title: string
+}
 
 interface ClusterMapProps {
   clusters: Cluster[]
@@ -13,26 +27,25 @@ interface ClusterMapProps {
   zoom?: number
   onClusterClick?: (cluster: Cluster) => void
   className?: string
-  clickToPlace?: boolean
-  onMapClick?: (lat: number, lng: number) => void
-  placedMarker?: [number, number] | null
+  onVoteSuccess?: (clusterId: string, newVoteCount: number) => void
+  currentUserId?: number
 }
 
 export function ClusterMap({
   clusters,
-  center = [37.775, -122.42],
-  zoom = 13,
+  center = [43.2389, 76.8897],
+  zoom = 12,
   onClusterClick,
   className = "",
-  clickToPlace = false,
-  onMapClick,
-  placedMarker,
+  onVoteSuccess,
+  currentUserId,
 }: ClusterMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
   const markersRef = useRef<L.Marker[]>([])
-  const placedMarkerRef = useRef<L.Marker | null>(null)
   const [isReady, setIsReady] = useState(false)
+  const [voting, setVoting] = useState<string | null>(null)
+  const [votedClusters, setVotedClusters] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -52,31 +65,90 @@ export function ClusterMap({
     mapInstanceRef.current = map
     setIsReady(true)
 
-    if (clickToPlace) {
-      map.on("click", (e: L.LeafletMouseEvent) => {
-        onMapClick?.(e.latlng.lat, e.latlng.lng)
-      })
-    }
-
     return () => {
       map.remove()
       mapInstanceRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [center, zoom])
+
+  const handleVote = async (clusterId: string, cluster: Cluster) => {
+    const token = getAuthToken()
+    if (!token) {
+      toast.error("Please log in to vote")
+      return
+    }
+
+    if (voting === clusterId) return
+
+    setVoting(clusterId)
+    try {
+      const issueId = parseInt(clusterId, 10)
+      
+      if (isNaN(issueId)) {
+        toast.error("Invalid issue ID")
+        return
+      }
+
+      const response = await fetch(`http://localhost:8001/api/issues/${issueId}/vote`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ user_id: currentUserId }),
+      })
+
+      if (!response.ok) {
+        let errorMessage = "Failed to vote"
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorMessage
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage
+        }
+        
+        if (response.status === 400 && errorMessage.includes("уже голосовали")) {
+          toast.error("❌ Вы уже голосовали за эту проблему")
+          setVotedClusters(prev => new Set(prev).add(clusterId))
+        } else {
+          toast.error(errorMessage)
+        }
+        throw new Error(errorMessage)
+      }
+
+      const result = await response.json()
+      toast.success("✅ Vote recorded!")
+      
+      setVotedClusters(prev => new Set(prev).add(clusterId))
+      
+      if (onVoteSuccess) {
+        onVoteSuccess(clusterId, result.votesCount || (cluster.votesCount || 0) + 1)
+      }
+      
+      cluster.votesCount = result.votesCount
+      
+    } catch (error) {
+      console.error("Vote error:", error)
+    } finally {
+      setVoting(null)
+    }
+  }
 
   // Update cluster markers
   useEffect(() => {
     if (!mapInstanceRef.current || !isReady) return
 
-    // Clear old markers
     markersRef.current.forEach((m) => m.remove())
     markersRef.current = []
 
     clusters.forEach((cluster) => {
-      const color = getPriorityColor(cluster.priority)
+      if (!cluster.latitude || !cluster.longitude) return
+      
+      const color = getPriorityColor(cluster.priority as "critical" | "medium" | "low")
       const size = getMarkerSize(cluster.complaintsCount)
       const cat = categories.find((c) => c.id === cluster.categoryId)
+      const votes = cluster.votesCount || 0
+      const hasVoted = votedClusters.has(cluster.id)
 
       const icon = L.divIcon({
         className: "custom-cluster-marker",
@@ -94,64 +166,133 @@ export function ClusterMap({
           box-shadow: 0 2px 8px ${color}80;
           border: 2px solid white;
           cursor: pointer;
-          transition: transform 0.2s;
-        " title="${cluster.title}">${cluster.complaintsCount}</div>`,
+          position: relative;
+        ">
+          ${cluster.complaintsCount}
+          ${votes > 0 ? `
+            <div style="
+              position: absolute;
+              bottom: -5px;
+              right: -5px;
+              background: #2196f3;
+              border-radius: 50%;
+              width: 18px;
+              height: 18px;
+              font-size: 9px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border: 1px solid white;
+            ">${votes}</div>
+          ` : ''}
+          ${hasVoted ? `
+            <div style="
+              position: absolute;
+              top: -5px;
+              right: -5px;
+              background: #4caf50;
+              border-radius: 50%;
+              width: 16px;
+              height: 16px;
+              font-size: 10px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border: 1px solid white;
+            ">✓</div>
+          ` : ''}
+        </div>`,
         iconSize: [size, size],
         iconAnchor: [size / 2, size / 2],
       })
 
+      const popupContent = `
+        <div style="min-width: 220px; font-family: sans-serif; padding: 4px;">
+          <strong style="font-size: 14px; display: block; margin-bottom: 4px;">
+            ${cluster.title}
+          </strong>
+          <span style="font-size: 11px; color: #666; display: block; margin-bottom: 8px;">
+            ${cat?.name || cluster.categoryId} &middot; ${cluster.district}
+          </span>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+            <span style="font-size: 12px; color: ${color}; font-weight: 600;">
+              📊 ${cluster.complaintsCount} complaints
+            </span>
+            <span style="font-size: 12px; color: #2196f3; font-weight: 600;">
+              👍 ${votes} votes
+            </span>
+          </div>
+          <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <button 
+              id="vote-btn-${cluster.id}"
+              class="vote-button"
+              data-cluster-id="${cluster.id}"
+              style="
+                flex: 1;
+                background: ${hasVoted ? '#4caf50' : (voting === cluster.id ? '#ccc' : '#2196f3')};
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                cursor: ${hasVoted || voting === cluster.id ? 'default' : 'pointer'};
+                font-weight: 500;
+              "
+              ${hasVoted ? 'disabled' : ''}
+            >
+              ${hasVoted ? '✓ Voted' : (voting === cluster.id ? '⏳ Voting...' : '👍 Vote')}
+            </button>
+            <a 
+              href="/problem/${cluster.id}"
+              style="..."
+              style="
+                flex: 1;
+                background: #4caf50;
+                color: white;
+                text-decoration: none;
+                text-align: center;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                cursor: pointer;
+                font-weight: 500;
+                display: inline-block;
+              "
+              onmouseover="this.style.background='#45a049'"
+              onmouseout="this.style.background='#4caf50'"
+            >
+              📋 Details
+            </a>
+          </div>
+        </div>
+      `
+
       const marker = L.marker([cluster.latitude, cluster.longitude], { icon })
         .addTo(mapInstanceRef.current!)
-        .bindPopup(
-          `<div style="min-width: 180px; font-family: sans-serif;">
-            <strong style="font-size: 13px;">${cluster.title}</strong><br/>
-            <span style="font-size: 11px; color: #666;">
-              ${cat?.name || cluster.categoryId} &middot; ${cluster.district}
-            </span><br/>
-            <span style="font-size: 11px; color: ${color}; font-weight: 600;">
-              ${cluster.complaintsCount} complaints
-            </span>
-          </div>`
-        )
+        .bindPopup(popupContent, { className: "cluster-popup" })
+
+      // Обработчик для кнопки Vote после открытия попапа
+      marker.on("popupopen", () => {
+        const voteBtn = document.getElementById(`vote-btn-${cluster.id}`)
+        if (voteBtn && !hasVoted && voting !== cluster.id) {
+          const newVoteBtn = voteBtn.cloneNode(true)
+          voteBtn.parentNode?.replaceChild(newVoteBtn, voteBtn)
+          newVoteBtn.addEventListener("click", (e) => {
+            e.stopPropagation()
+            handleVote(cluster.id, cluster)
+          })
+        }
+      })
 
       marker.on("click", () => {
-        onClusterClick?.(cluster)
+        if (onClusterClick) {
+          onClusterClick(cluster)
+        }
       })
 
       markersRef.current.push(marker)
     })
-  }, [clusters, isReady, onClusterClick])
-
-  // Placed marker for location picker
-  useEffect(() => {
-    if (!mapInstanceRef.current || !isReady) return
-
-    if (placedMarkerRef.current) {
-      placedMarkerRef.current.remove()
-      placedMarkerRef.current = null
-    }
-
-    if (placedMarker) {
-      const icon = L.divIcon({
-        className: "placed-marker",
-        html: `<div style="
-          width: 32px;
-          height: 32px;
-          border-radius: 50% 50% 50% 0;
-          background: oklch(0.45 0.18 255);
-          transform: rotate(-45deg);
-          border: 3px solid white;
-          box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-        "></div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-      })
-
-      placedMarkerRef.current = L.marker(placedMarker, { icon }).addTo(
-        mapInstanceRef.current
-      )
-    }
-  }, [placedMarker, isReady])
+  }, [clusters, isReady, onClusterClick, voting, votedClusters])
 
   return (
     <div

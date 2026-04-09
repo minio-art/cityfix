@@ -25,6 +25,7 @@ interface MapContainerProps {
   clickToPlace?: boolean
   onMapClick?: (lat: number, lng: number) => void
   placedMarker?: [number, number] | null
+  searchQuery?: string  // ДОБАВЛЯЕМ
 }
 
 export function MapContainer(props: MapContainerProps) {

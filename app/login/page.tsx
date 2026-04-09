@@ -1,38 +1,32 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { useApp } from "@/lib/store"
-import { users } from "@/lib/mock-data"
+import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { MapPin } from "lucide-react"
+import { toast } from "sonner"
 
 export default function LoginPage() {
-  const router = useRouter()
-  const { dispatch } = useApp()
-  const [email, setEmail] = useState("")
+  const { login } = useAuth()
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
-
-    const user = users.find((u) => u.email === email)
-    if (!user) {
-      setError("User not found. Try alex@example.com or admin@cityfix.com")
-      return
-    }
-
-    dispatch({ type: "LOGIN", payload: user })
-    if (user.role === "admin") {
-      router.push("/admin/dashboard")
-    } else {
-      router.push("/map")
+    setLoading(true)
+    
+    try {
+      await login(username, password)
+      toast.success("Добро пожаловать!")
+    } catch (error: any) {
+      toast.error(error.message || "Ошибка входа")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -50,52 +44,49 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your account to continue</CardDescription>
+            <CardTitle className="text-2xl">Вход в CityFix</CardTitle>
+            <CardDescription>Войдите в свой аккаунт, чтобы продолжить</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Имя пользователя</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="alex@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  placeholder="alex"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Пароль</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Any password works (mock)"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
                 />
               </div>
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
-              <Button type="submit" className="mt-2 w-full">
-                Sign In
+              <Button type="submit" className="mt-2 w-full" disabled={loading}>
+                {loading ? "Вход..." : "Войти"}
               </Button>
             </form>
             <div className="mt-6 space-y-2">
               <p className="text-center text-sm text-muted-foreground">
-                Demo accounts:
+                Тестовые аккаунты:
               </p>
               <div className="flex flex-col gap-1 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-                <span>Resident: alex@example.com</span>
-                <span>Admin: admin@cityfix.com</span>
+                <span>Пользователь: username: "user", password: "user123"</span>
+                <span>Админ: username: "admin", password: "admin123"</span>
               </div>
             </div>
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              {"Don't have an account? "}
+              Нет аккаунта?{" "}
               <Link href="/register" className="font-medium text-primary hover:underline">
-                Sign up
+                Зарегистрироваться
               </Link>
             </p>
           </CardContent>

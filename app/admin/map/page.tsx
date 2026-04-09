@@ -1,64 +1,172 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useApp } from "@/lib/store"
 import { MapContainer } from "@/components/map/map-container"
-import { MapFilters } from "@/components/map/map-filters"
+import { getClusters } from "@/lib/api"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { MapFilters } from "@/components/map/map-filters"
 import { SlidersHorizontal, X } from "lucide-react"
-import type { Cluster, Priority, Status } from "@/lib/types"
-import { categories } from "@/lib/mock-data"
-import { getPriorityColor, getPriorityLabel, getStatusLabel } from "@/lib/geo"
 import { toast } from "sonner"
+
+interface ApiCluster {
+  id: number
+  position: [number, number]
+  type: string
+  priority: string
+  count: number
+  status: string
+  title: string
+  district: string
+}
+
+interface MapCluster {
+  id: string
+  categoryId: string
+  latitude: number
+  longitude: number
+  radius: number
+  priority: string
+  status: string
+  problemIds: string[]
+  complaintsCount: number
+  district: string
+  title: string
+  createdAt: string
+  updatedAt: string
+}
 
 export default function AdminMapPage() {
   const { state, dispatch } = useApp()
-  const [selectedCluster, setSelectedCluster] = useState<Cluster | null>(null)
+  const [allClusters, setAllClusters] = useState<MapCluster[]>([])
+  const [selectedCluster, setSelectedCluster] = useState<MapCluster | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const filteredClusters = state.clusters.filter((cluster) => {
-    const f = state.filters
-    if (f.categories.length > 0 && !f.categories.includes(cluster.categoryId)) return false
-    if (f.districts.length > 0 && !f.districts.includes(cluster.district)) return false
-    if (f.statuses.length > 0 && !f.statuses.includes(cluster.status)) return false
-    if (f.priorities.length > 0 && !f.priorities.includes(cluster.priority)) return false
-    return true
-  })
-
-  function handlePriorityChange(clusterId: string, priority: Priority) {
-    const cluster = state.clusters.find((c) => c.id === clusterId)
-    if (cluster) {
-      dispatch({ type: "UPDATE_CLUSTER", payload: { ...cluster, priority } })
-      toast.success(`Priority updated to ${getPriorityLabel(priority)}`)
+  useEffect(() => {
+    fetchData()
+    
+    const handleStatusUpdate = () => {
+      fetchData()
     }
-    setSelectedCluster(null)
+    window.addEventListener('status-updated', handleStatusUpdate)
+    return () => window.removeEventListener('status-updated', handleStatusUpdate)
+  }, [])
+
+  async function fetchData() {
+    try {
+      const data: ApiCluster[] = await getClusters()
+      
+      const formattedClusters: MapCluster[] = data.map((item) => ({
+        id: String(item.id),
+        categoryId: item.type,
+        latitude: item.position[0],
+        longitude: item.position[1],
+        radius: 2,
+        priority: item.priority,
+        status: item.status,
+        problemIds: [],
+        complaintsCount: item.count,
+        district: item.district,
+        title: item.title,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }))
+      
+      setAllClusters(formattedClusters)
+    } catch (error) {
+      console.error('Ошибка загрузки:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handleStatusChange(clusterId: string, status: Status) {
-    const cluster = state.clusters.find((c) => c.id === clusterId)
-    if (cluster) {
-      dispatch({ type: "UPDATE_CLUSTER", payload: { ...cluster, status } })
-      toast.success(`Status updated to ${getStatusLabel(status)}`)
+  // Применяем фильтры к кластерам
+  const filteredClusters = useMemo(() => {
+    let filtered = [...allClusters]
+    
+    // Фильтр по категориям
+    if (state.filters.categories.length > 0) {
+      filtered = filtered.filter(cluster => 
+        state.filters.categories.includes(cluster.categoryId)
+      )
     }
-    setSelectedCluster(null)
+    
+    // Фильтр по статусам
+    if (state.filters.statuses.length > 0) {
+      filtered = filtered.filter(cluster => 
+        state.filters.statuses.includes(cluster.status as any)
+      )
+    }
+    
+    // Фильтр по приоритетам
+    if (state.filters.priorities.length > 0) {
+      filtered = filtered.filter(cluster => 
+        state.filters.priorities.includes(cluster.priority as any)
+      )
+    }
+    
+    // Фильтр по районам
+    if (state.filters.districts.length > 0) {
+      filtered = filtered.filter(cluster => 
+        state.filters.districts.includes(cluster.district)
+      )
+    }
+    
+    // Поиск по тексту
+    if (state.filters.searchQuery) {
+      const query = state.filters.searchQuery.toLowerCase()
+      filtered = filtered.filter(cluster => 
+        cluster.title?.toLowerCase().includes(query) ||
+        cluster.district?.toLowerCase().includes(query) ||
+        cluster.categoryId?.toLowerCase().includes(query)
+      )
+    }
+    
+    return filtered
+  }, [allClusters, state.filters])
+
+  async function updateClusterStatus(clusterId: number, newStatus: string) {
+    try {
+      const response = await fetch(`http://localhost:8001/api/clusters/${clusterId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      if (response.ok) {
+        toast.success("Статус кластера обновлен")
+        fetchData()
+        setSelectedCluster(null)
+      } else {
+        toast.error("Ошибка обновления")
+      }
+    } catch (error) {
+      toast.error("Ошибка соединения")
+    }
   }
 
-  const cat = selectedCluster
-    ? categories.find((c) => c.id === selectedCluster.categoryId)
-    : null
+  if (loading) {
+    return <div className="p-6">Загрузка карты...</div>
+  }
 
   return (
     <div className="relative flex h-full">
-      <div className="hidden w-72 shrink-0 border-r border-border lg:block">
+      <div className="hidden w-72 shrink-0 border-r lg:block">
         <MapFilters />
       </div>
 
       <div className="relative flex-1">
         <MapContainer
           clusters={filteredClusters}
+          center={[43.2389, 76.8897]}
+          zoom={12}
           onClusterClick={(c) => setSelectedCluster(c)}
         />
 
@@ -76,79 +184,47 @@ export default function AdminMapPage() {
           </Sheet>
         </div>
 
-        {/* Admin cluster management panel */}
         {selectedCluster && (
-          <div className="absolute bottom-6 left-1/2 z-[1000] w-[calc(100%-3rem)] max-w-lg -translate-x-1/2 lg:left-auto lg:right-6 lg:translate-x-0">
+          <div className="absolute bottom-6 left-1/2 z-[1000] w-96 -translate-x-1/2">
             <Card className="shadow-xl">
-              <CardHeader className="flex flex-row items-start justify-between pb-2">
+              <CardHeader className="pb-2 flex flex-row items-start justify-between">
                 <div>
                   <CardTitle className="text-base">{selectedCluster.title}</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    {cat?.name} &middot; {selectedCluster.district} &middot;{" "}
-                    {selectedCluster.complaintsCount} complaints
+                    {selectedCluster.categoryId} · {selectedCluster.district} · {selectedCluster.complaintsCount} complaints
                   </p>
                 </div>
-                <button
-                  onClick={() => setSelectedCluster(null)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
+                <button onClick={() => setSelectedCluster(null)} className="text-muted-foreground hover:text-foreground">
                   <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
                 </button>
               </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                  <Badge
-                    style={{ backgroundColor: getPriorityColor(selectedCluster.priority), color: "white" }}
-                  >
-                    {getPriorityLabel(selectedCluster.priority)}
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <Badge className={
+                    selectedCluster.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                    selectedCluster.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-green-100 text-green-700'
+                  }>
+                    {selectedCluster.priority}
                   </Badge>
-                  <Badge variant="outline">{getStatusLabel(selectedCluster.status)}</Badge>
+                  <Badge variant="outline">{selectedCluster.status}</Badge>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                      Change Priority
-                    </label>
-                    <Select
-                      value={selectedCluster.priority}
-                      onValueChange={(v) =>
-                        handlePriorityChange(selectedCluster.id, v as Priority)
-                      }
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="critical">Critical</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                      Change Status
-                    </label>
-                    <Select
-                      value={selectedCluster.status}
-                      onValueChange={(v) =>
-                        handleStatusChange(selectedCluster.id, v as Status)
-                      }
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="new">New</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="resolved">Resolved</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                
+                <div>
+                  <label className="text-xs text-muted-foreground">Change Status</label>
+                  <Select 
+                    value={selectedCluster.status}
+                    onValueChange={(v) => updateClusterStatus(Number(selectedCluster.id), v)}
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
@@ -157,4 +233,7 @@ export default function AdminMapPage() {
       </div>
     </div>
   )
+  
+
+  
 }

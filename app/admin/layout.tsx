@@ -1,14 +1,42 @@
 "use client"
 
+import { useAuth } from "@/hooks/useAuth"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import { AdminSidebar } from "@/components/layout/admin-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
-import { useState } from "react"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  // Проверка доступа
+  useEffect(() => {
+    if (!loading && (!user || user.role !== 'admin')) {
+      router.push('/login')
+    }
+  }, [user, loading, router])
+
+  // Показываем загрузку пока проверяем
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Загрузка...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Если не админ - не показываем контент
+  if (!user || user.role !== 'admin') {
+    return null
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

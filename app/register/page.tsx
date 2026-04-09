@@ -1,42 +1,51 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { useApp } from "@/lib/store"
+import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MapPin } from "lucide-react"
-
-const cities = ["San Francisco", "New York", "Los Angeles", "Chicago", "Seattle", "Austin"]
+import { toast } from "sonner"
 
 export default function RegisterPage() {
-  const router = useRouter()
-  const { dispatch } = useApp()
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [city, setCity] = useState("")
+  const { register } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    name: "",
+    phone: "",
+    password: "",
+    confirmPassword: ""
+  })
 
-  function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    const newUser = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      role: "resident" as const,
-      city: city || "San Francisco",
-      createdAt: new Date().toISOString(),
-      reportsCount: 0,
-      votesCount: 0,
+    
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Пароли не совпадают")
+      return
     }
-
-    dispatch({ type: "LOGIN", payload: newUser })
-    router.push("/map")
+    
+    setLoading(true)
+    
+    try {
+      await register({
+        username: formData.username,
+        email: formData.email,
+        name: formData.name,
+        phone: formData.phone,
+        password: formData.password
+      })
+      toast.success("Регистрация успешна!")
+    } catch (error: any) {
+      toast.error(error.message || "Ошибка регистрации")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -53,66 +62,80 @@ export default function RegisterPage() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Create your account</CardTitle>
-            <CardDescription>Join your community and start reporting problems</CardDescription>
+            <CardTitle className="text-2xl">Регистрация</CardTitle>
+            <CardDescription>Создайте аккаунт, чтобы сообщать о проблемах города</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="username">Имя пользователя *</Label>
                 <Input
-                  id="name"
-                  placeholder="John Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  id="username"
+                  placeholder="alex"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   required
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email *</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="john@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="alex@example.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="name">Имя</Label>
+                <Input
+                  id="name"
+                  placeholder="Алексей"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="phone">Телефон</Label>
+                <Input
+                  id="phone"
+                  placeholder="+7 (777) 123-45-67"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="password">Пароль *</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Create a password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label>City</Label>
-                <Select onValueChange={setCity} value={city}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your city" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="confirmPassword">Подтвердите пароль *</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  required
+                />
               </div>
-              <Button type="submit" className="mt-2 w-full">
-                Create Account
+              <Button type="submit" className="mt-2 w-full" disabled={loading}>
+                {loading ? "Регистрация..." : "Зарегистрироваться"}
               </Button>
             </form>
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              Уже есть аккаунт?{" "}
               <Link href="/login" className="font-medium text-primary hover:underline">
-                Sign in
+                Войти
               </Link>
             </p>
           </CardContent>
