@@ -47,7 +47,7 @@ export function ClusterMap({
   const [isReady, setIsReady] = useState(false)
   const [voting, setVoting] = useState<string | null>(null)
   const [votedClusters, setVotedClusters] = useState<Set<string>>(new Set())
-  const { user } = useAuth() // Получаем информацию о пользователе
+  const { user } = useAuth()
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -136,17 +136,10 @@ export function ClusterMap({
     }
   }
 
-  // Функция для получения правильного URL в зависимости от роли
   const getProblemUrl = (clusterId: string) => {
-    // Если пользователь админ, открываем админскую страницу
-    if (user?.role === "admin") {
-      return `/admin/problem/${clusterId}`
-    }
-    // Иначе открываем обычную пользовательскую страницу
-    return `/problem/${clusterId}`
+    return `/cluster/${clusterId}`
   }
 
-  // Update cluster markers
   useEffect(() => {
     if (!mapInstanceRef.current || !isReady) return
 
@@ -285,7 +278,6 @@ export function ClusterMap({
         .addTo(mapInstanceRef.current!)
         .bindPopup(popupContent, { className: "cluster-popup" })
 
-      // Обработчик для кнопки Vote после открытия попапа
       marker.on("popupopen", () => {
         const voteBtn = document.getElementById(`vote-btn-${cluster.id}`)
         if (voteBtn && !hasVoted && voting !== cluster.id) {
@@ -306,7 +298,7 @@ export function ClusterMap({
 
       markersRef.current.push(marker)
     })
-  }, [clusters, isReady, onClusterClick, voting, votedClusters, user]) // Добавили user в зависимости
+  }, [clusters, isReady, onClusterClick, voting, votedClusters, user])
 
   return (
     <div

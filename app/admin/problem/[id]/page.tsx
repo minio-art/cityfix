@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
-import { getIssue, getComments, updateIssueStatus, uploadAfterPhoto } from "@/lib/api"
+import { getIssue, voteIssue, addComment, getComments, uploadAfterPhoto, updateIssueStatus } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { toast } from "sonner"
 import Image from "next/image"
-import { Calendar, MapPin, AlertCircle, CheckCircle2, Clock, Camera, ChevronLeft } from "lucide-react"
+import { ThumbsUp, Calendar, MapPin, AlertCircle, CheckCircle2, Clock, Camera, ChevronLeft } from "lucide-react"
+import Link from "next/link"
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   new: { label: "Новая", color: "bg-blue-100 text-blue-700", icon: AlertCircle },
@@ -38,7 +39,7 @@ const categoryNames: Record<string, string> = {
   other: "Другое"
 }
 
-export default function AdminProblemEditPage() {
+export default function ProblemDetailPage() {
   const { id } = useParams()
   const router = useRouter()
   const { user } = useAuth()
@@ -49,31 +50,86 @@ export default function AdminProblemEditPage() {
   const [submitting, setSubmitting] = useState(false)
   const [afterPhoto, setAfterPhoto] = useState<File | null>(null)
   const [afterPhotoPreview, setAfterPhotoPreview] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState("")
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null)
 
-  // Проверка прав доступа
-  useEffect(() => {
-    if (user && user.role !== "admin") {
-      toast.error("Доступ запрещен. Только для администраторов.")
-      router.push("/map")
+  const requestStatusChange = (newStatus: string) => {
+    if (newStatus === "resolved" && !problem.photo_after && !afterPhoto) {
+      toast.error("Сначала загрузите фото 'После'")
       return
     }
+    setPendingStatus(newStatus)
+    setShowConfirmDialog(true)
+  }
+
+  const confirmStatusChange = async () => {
+    if (!pendingStatus) return
     
-    if (user?.role === "admin") {
-      fetchData()
+    setSubmitting(true)
+    try {
+      if (afterPhoto && pendingStatus === "resolved") {
+        const formData = new FormData()
+        formData.append("photo", afterPhoto)
+        const result = await uploadAfterPhoto(id as string, formData)
+        setProblem({ ...problem, photo_after: result.photo_url })
+        setAfterPhoto(null)
+        setAfterPhotoPreview(null)
+      }
+      
+      await updateIssueStatus(id as string, pendingStatus)
+      setProblem({ ...problem, status: pendingStatus })
+      setSelectedStatus(pendingStatus)
+      toast.success(`Статус изменён на ${statusConfig[pendingStatus]?.label}`)
+      
+      await fetchData()
+      setShowConfirmDialog(false)
+      setPendingStatus(null)
+    } catch (error) {
+      toast.error("Ошибка при изменении статуса")
+    } finally {
+      setSubmitting(false)
     }
+  }
+
+  const checkAdminStatus = async () => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) return
+      
+      const response = await fetch('http://localhost:8001/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const userData = await response.json()
+        if (userData.role === 'admin') {
+          setIsAdmin(true)
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка проверки статуса админа:', error)
+    }
+  }
+
+  useEffect(() => {
+    checkAdminStatus()
+    if (user?.role === "admin") {
+      setIsAdmin(true)
+    }
+    fetchData()
   }, [id, user])
 
   async function fetchData() {
     try {
       const issueData = await getIssue(id as string)
-      if (!issueData) {
-        toast.error("Проблема не найдена")
-        router.push("/admin/problems")
-        return
-      }
       setProblem(issueData)
       setSelectedStatus(issueData.status)
+      
+      if (issueData.photo_after) {
+        setAfterPhotoPreview(`http://localhost:8001${issueData.photo_after}`)
+      }
       
       const commentsData = await getComments(id as string)
       setComments(commentsData || [])
@@ -85,41 +141,51 @@ export default function AdminProblemEditPage() {
     }
   }
 
-  async function handleAddComment() {
-    if (!newComment.trim()) return
+  async function handleVote() {
+    if (!user) {
+      toast.error("Войдите чтобы голосовать")
+      router.push("/login")
+      return
+    }
 
     setSubmitting(true)
     try {
-      // Используем существующий API для комментариев
-      const response = await fetch(`http://localhost:8001/api/issues/${id}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({ 
-          text: newComment,
-          user_id: user?.id 
-        })
-      })
-      
-      if (response.ok) {
-        const newCommentObj = {
-          id: Date.now(),
-          text: newComment,
-          created_at: new Date().toISOString(),
-          user_id: user?.id,
-          author_name: user?.name || user?.email?.split('@')[0] || "Администратор",
-        }
-        
-        setComments([newCommentObj, ...comments])
-        setNewComment("")
-        toast.success("Комментарий добавлен")
-      } else {
-        toast.error("Ошибка при добавлении комментария")
-      }
+      await voteIssue(id as string, user.id.toString())
+      setProblem({ ...problem, votesCount: (problem.votesCount || 0) + 1 })
+      toast.success("Голос учтён")
     } catch (error) {
-      toast.error("Ошибка соединения")
+      toast.error("Ошибка при голосовании")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleAddComment() {
+    if (!newComment.trim()) return
+    if (!user) {
+      toast.error("Войдите чтобы комментировать")
+      router.push("/login")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const result = await addComment(id as string, newComment, user.id.toString())
+      
+      const newCommentObj = {
+        id: result.id || Date.now(),
+        text: newComment,
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        author_name: user.name || user.email?.split('@')[0] || "Пользователь",
+        user_email: user.email
+      }
+      
+      setComments([newCommentObj, ...comments])
+      setNewComment("")
+      toast.success("Комментарий добавлен")
+    } catch (error) {
+      toast.error("Ошибка при добавлении комментария")
     } finally {
       setSubmitting(false)
     }
@@ -144,51 +210,24 @@ export default function AdminProblemEditPage() {
       const formData = new FormData()
       formData.append("photo", afterPhoto)
       const result = await uploadAfterPhoto(id as string, formData)
+      const photoUrl = result.photo_url || result.url
       
-      setProblem({ ...problem, photo_after: result.photo_url })
+      setProblem({ ...problem, photo_after: photoUrl })
+      setAfterPhotoPreview(`http://localhost:8001${photoUrl}`)
       setAfterPhoto(null)
-      setAfterPhotoPreview(null)
       
       toast.success("Фото 'После' загружено")
+      await fetchData()
     } catch (error) {
+      console.error("Ошибка:", error)
       toast.error("Ошибка при загрузке фото")
     } finally {
       setSubmitting(false)
     }
   }
 
-  async function handleStatusChange(newStatus: string) {
-    if (newStatus === "resolved" && !problem.photo_after && !afterPhoto) {
-      toast.error("Сначала загрузите фото 'После'")
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      if (afterPhoto && newStatus === "resolved") {
-        const formData = new FormData()
-        formData.append("photo", afterPhoto)
-        const result = await uploadAfterPhoto(id as string, formData)
-        setProblem({ ...problem, photo_after: result.photo_url })
-        setAfterPhoto(null)
-        setAfterPhotoPreview(null)
-      }
-      
-      await updateIssueStatus(id as string, newStatus)
-      setProblem({ ...problem, status: newStatus })
-      setSelectedStatus(newStatus)
-      toast.success(`Статус изменён на ${statusConfig[newStatus]?.label}`)
-      
-      await fetchData()
-    } catch (error) {
-      toast.error("Ошибка при изменении статуса")
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   if (loading) {
-    return <div className="flex justify-center p-12">Загрузка проблемы...</div>
+    return <div className="flex justify-center p-12">Загрузка...</div>
   }
 
   if (!problem) {
@@ -201,14 +240,10 @@ export default function AdminProblemEditPage() {
 
   return (
     <div className="container mx-auto max-w-4xl p-6">
-      <Button
-        variant="ghost"
-        onClick={() => router.push("/admin/problems")}
-        className="mb-4"
-      >
+      <Link href="/map" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4">
         <ChevronLeft className="w-4 h-4 mr-1" />
-        Назад к списку проблем
-      </Button>
+        Назад к карте
+      </Link>
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-3">{problem.title}</h1>
@@ -232,9 +267,10 @@ export default function AdminProblemEditPage() {
             <Calendar className="w-4 h-4 mr-1" />
             {new Date(problem.created_at).toLocaleDateString()}
           </div>
-          <div className="flex items-center">
-            👍 {problem.votesCount || 0} голосов
-          </div>
+          <button onClick={handleVote} className="flex items-center hover:text-primary transition-colors">
+            <ThumbsUp className="w-4 h-4 mr-1" />
+            {problem.votesCount || 0} голосов
+          </button>
         </div>
       </div>
 
@@ -281,8 +317,7 @@ export default function AdminProblemEditPage() {
               <div className="text-center text-muted-foreground py-8">Фото после ремонта пока нет</div>
             )}
             
-            {/* Кнопка загрузки фото для админа */}
-            {problem.status !== "resolved" && (
+            {isAdmin && problem.status !== "resolved" && (
               <div className="mt-3">
                 <label className="cursor-pointer flex items-center justify-center gap-2 p-2 border rounded-lg hover:bg-muted transition-colors">
                   <Camera className="w-4 h-4" />
@@ -309,35 +344,52 @@ export default function AdminProblemEditPage() {
         </CardContent>
       </Card>
 
-      {/* Управление статусом для админа */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Управление статусом</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            {Object.entries(statusConfig).map(([key, config]) => (
-              <Button
-                key={key}
-                variant={selectedStatus === key ? "default" : "outline"}
-                className={selectedStatus === key ? config.color : ""}
-                onClick={() => handleStatusChange(key)}
-                disabled={submitting || (key === "resolved" && !problem.photo_after && !afterPhoto)}
-              >
-                <config.icon className="w-4 h-4 mr-1" />
-                {config.label}
-              </Button>
-            ))}
-          </div>
-          {selectedStatus === "resolved" && !problem.photo_after && !afterPhoto && (
-            <p className="text-sm text-muted-foreground mt-2">
-              ⚠️ Для отметки "Решена" необходимо загрузить фото после ремонта
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {isAdmin && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Управление статусом</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              {Object.entries(statusConfig).map(([key, config]) => (
+                <Button
+                  key={key}
+                  variant={selectedStatus === key ? "default" : "outline"}
+                  className={selectedStatus === key ? config.color : ""}
+                  onClick={() => requestStatusChange(key)}
+                  disabled={submitting || (key === "resolved" && !problem.photo_after && !afterPhoto)}
+                >
+                  <config.icon className="w-4 h-4 mr-1" />
+                  {config.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Комментарии */}
+      {/* Диалог подтверждения */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader>
+              <CardTitle>Подтверждение</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>Вы уверены, что хотите изменить статус на "{pendingStatus && statusConfig[pendingStatus]?.label}"?</p>
+              <div className="flex gap-3 mt-4">
+                <Button onClick={confirmStatusChange} disabled={submitting}>
+                  {submitting ? "Обработка..." : "Да, подтверждаю"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                  Отмена
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Комментарии ({comments.length})</CardTitle>
@@ -352,24 +404,24 @@ export default function AdminProblemEditPage() {
               className="mb-2"
             />
             <Button onClick={handleAddComment} disabled={submitting || !newComment.trim()}>
-              {submitting ? "Отправка..." : "Отправить комментарий"}
+              {submitting ? "Отправка..." : "Отправить"}
             </Button>
           </div>
 
           <div className="space-y-4">
             {comments.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">Пока нет комментариев</div>
+              <div className="text-center text-muted-foreground py-8">Пока нет комментариев. Будьте первым!</div>
             ) : (
               comments.map((comment: any) => (
                 <div key={comment.id} className="border-b pb-3">
                   <div className="flex items-start gap-3">
                     <Avatar className="w-8 h-8">
-                      <AvatarFallback>{comment.author_name?.[0] || comment.user_email?.[0] || "A"}</AvatarFallback>
+                      <AvatarFallback>{comment.author_name?.[0] || comment.user_email?.[0] || "U"}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-sm">
-                          {comment.author_name || comment.user_email?.split('@')[0] || "Администратор"}
+                          {comment.author_name || comment.user_email?.split('@')[0] || "Пользователь"}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {new Date(comment.created_at).toLocaleDateString()}

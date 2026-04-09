@@ -52,8 +52,69 @@ export default function ProblemDetailPage() {
   const [afterPhotoPreview, setAfterPhotoPreview] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState("")
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null)
+
+  const requestStatusChange = (newStatus: string) => {
+    if (newStatus === "resolved" && !problem.photo_after && !afterPhoto) {
+      toast.error("Сначала загрузите фото 'После'")
+      return
+    }
+    setPendingStatus(newStatus)
+    setShowConfirmDialog(true)
+  }
+
+  const confirmStatusChange = async () => {
+    if (!pendingStatus) return
+    
+    setSubmitting(true)
+    try {
+      if (afterPhoto && pendingStatus === "resolved") {
+        const formData = new FormData()
+        formData.append("photo", afterPhoto)
+        const result = await uploadAfterPhoto(id as string, formData)
+        setProblem({ ...problem, photo_after: result.photo_url })
+        setAfterPhoto(null)
+        setAfterPhotoPreview(null)
+      }
+      
+      await updateIssueStatus(id as string, pendingStatus)
+      setProblem({ ...problem, status: pendingStatus })
+      setSelectedStatus(pendingStatus)
+      toast.success(`Статус изменён на ${statusConfig[pendingStatus]?.label}`)
+      
+      await fetchData()
+      setShowConfirmDialog(false)
+      setPendingStatus(null)
+    } catch (error) {
+      toast.error("Ошибка при изменении статуса")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const checkAdminStatus = async () => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) return
+      
+      const response = await fetch('http://localhost:8001/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const userData = await response.json()
+        if (userData.role === 'admin') {
+          setIsAdmin(true)
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка проверки статуса админа:', error)
+    }
+  }
 
   useEffect(() => {
+    checkAdminStatus()
     if (user?.role === "admin") {
       setIsAdmin(true)
     }
@@ -63,10 +124,15 @@ export default function ProblemDetailPage() {
   async function fetchData() {
     try {
       const issueData = await getIssue(id as string)
-      const commentsData = await getComments(id as string)
       setProblem(issueData)
-      setComments(commentsData || [])
       setSelectedStatus(issueData.status)
+      
+      if (issueData.photo_after) {
+        setAfterPhotoPreview(`http://localhost:8001${issueData.photo_after}`)
+      }
+      
+      const commentsData = await getComments(id as string)
+      setComments(commentsData || [])
     } catch (error) {
       console.error("Ошибка загрузки:", error)
       toast.error("Не удалось загрузить данные")
@@ -106,7 +172,6 @@ export default function ProblemDetailPage() {
     try {
       const result = await addComment(id as string, newComment, user.id.toString())
       
-      // Создаём объект комментария с именем пользователя для мгновенного отображения
       const newCommentObj = {
         id: result.id || Date.now(),
         text: newComment,
@@ -145,48 +210,17 @@ export default function ProblemDetailPage() {
       const formData = new FormData()
       formData.append("photo", afterPhoto)
       const result = await uploadAfterPhoto(id as string, formData)
+      const photoUrl = result.photo_url || result.url
       
-      // Обновляем проблему с новым фото
-      setProblem({ ...problem, photo_after: result.photo_url })
+      setProblem({ ...problem, photo_after: photoUrl })
+      setAfterPhotoPreview(`http://localhost:8001${photoUrl}`)
       setAfterPhoto(null)
-      setAfterPhotoPreview(null)
       
       toast.success("Фото 'После' загружено")
-    } catch (error) {
-      toast.error("Ошибка при загрузке фото")
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleStatusChange(newStatus: string) {
-    if (newStatus === "resolved" && !problem.photo_after && !afterPhoto) {
-      toast.error("Сначала загрузите фото 'После'")
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      // Если есть новое фото и статус "resolved" - загружаем фото
-      if (afterPhoto && newStatus === "resolved") {
-        const formData = new FormData()
-        formData.append("photo", afterPhoto)
-        const result = await uploadAfterPhoto(id as string, formData)
-        setProblem({ ...problem, photo_after: result.photo_url })
-        setAfterPhoto(null)
-        setAfterPhotoPreview(null)
-      }
-      
-      // Обновляем статус
-      await updateIssueStatus(id as string, newStatus)
-      setProblem({ ...problem, status: newStatus })
-      setSelectedStatus(newStatus)
-      toast.success(`Статус изменён на ${statusConfig[newStatus]?.label}`)
-      
-      // Перезагружаем данные для синхронизации
       await fetchData()
     } catch (error) {
-      toast.error("Ошибка при изменении статуса")
+      console.error("Ошибка:", error)
+      toast.error("Ошибка при загрузке фото")
     } finally {
       setSubmitting(false)
     }
@@ -322,7 +356,7 @@ export default function ProblemDetailPage() {
                   key={key}
                   variant={selectedStatus === key ? "default" : "outline"}
                   className={selectedStatus === key ? config.color : ""}
-                  onClick={() => handleStatusChange(key)}
+                  onClick={() => requestStatusChange(key)}
                   disabled={submitting || (key === "resolved" && !problem.photo_after && !afterPhoto)}
                 >
                   <config.icon className="w-4 h-4 mr-1" />
@@ -330,13 +364,30 @@ export default function ProblemDetailPage() {
                 </Button>
               ))}
             </div>
-            {selectedStatus === "resolved" && !problem.photo_after && !afterPhoto && (
-              <p className="text-sm text-muted-foreground mt-2">
-                Для отметки "Решена" необходимо загрузить фото после ремонта
-              </p>
-            )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Диалог подтверждения */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader>
+              <CardTitle>Подтверждение</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>Вы уверены, что хотите изменить статус на "{pendingStatus && statusConfig[pendingStatus]?.label}"?</p>
+              <div className="flex gap-3 mt-4">
+                <Button onClick={confirmStatusChange} disabled={submitting}>
+                  {submitting ? "Обработка..." : "Да, подтверждаю"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                  Отмена
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <Card>
