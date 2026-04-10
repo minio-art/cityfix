@@ -8,9 +8,9 @@ import { Map, PlusCircle, User, MapPin, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 const navItems = [
-  { href: "/map", label: "Map", icon: Map },
-  { href: "/problem/create", label: "Report Problem", icon: PlusCircle },
-  { href: "/profile", label: "My Profile", icon: User },
+  { href: "/map", label: "Карта", icon: Map },
+  { href: "/problem/create", label: "Сообщить о проблеме", icon: PlusCircle },
+  { href: "/profile", label: "Мой профиль", icon: User },
 ]
 
 export function AppSidebar() {
@@ -27,6 +27,7 @@ export function AppSidebar() {
           <span className="text-lg font-bold text-sidebar-foreground">CityFix</span>
         </Link>
       </div>
+
       <nav className="flex-1 px-3 py-4">
         <ul className="flex flex-col gap-1">
           {navItems.map((item) => {
@@ -50,6 +51,7 @@ export function AppSidebar() {
           })}
         </ul>
       </nav>
+
       <div className="border-t border-sidebar-border p-3">
         <Button
           variant="ghost"
@@ -60,7 +62,7 @@ export function AppSidebar() {
           }}
         >
           <LogOut className="h-4 w-4" />
-          Sign Out
+          Выйти
         </Button>
       </div>
     </aside>

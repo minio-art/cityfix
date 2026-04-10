@@ -74,15 +74,7 @@ export default function LoginPage() {
                 {loading ? "Вход..." : "Войти"}
               </Button>
             </form>
-            <div className="mt-6 space-y-2">
-              <p className="text-center text-sm text-muted-foreground">
-                Тестовые аккаунты:
-              </p>
-              <div className="flex flex-col gap-1 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-                <span>Пользователь: username: "user", password: "user123"</span>
-                <span>Админ: username: "admin", password: "admin123"</span>
-              </div>
-            </div>
+            
             <p className="mt-4 text-center text-sm text-muted-foreground">
               Нет аккаунта?{" "}
               <Link href="/register" className="font-medium text-primary hover:underline">

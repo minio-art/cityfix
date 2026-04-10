@@ -127,12 +127,12 @@ export default function AdminProblemsPage() {
     selectedIds.forEach(async (id) => {
       await updateStatus(id, status)
     })
-    toast.success(`${selectedIds.length} problems updated`)
+    toast.success(`${selectedIds.length} проблем обновлено`)
     setSelectedIds([])
   }
 
   function exportCSV() {
-    const headers = ["ID", "Title", "Category", "Status", "Priority", "District", "Votes", "Date"]
+    const headers = ["ID", "Заголовок", "Категория", "Статус", "Приоритет", "Район", "Голосов", "Дата"]
     const rows = filtered.map((p) => [
       p.id,
       p.title,
@@ -148,10 +148,10 @@ export default function AdminProblemsPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = "cityfix-problems.csv"
+    a.download = "cityfix-проблемы.csv"
     a.click()
     URL.revokeObjectURL(url)
-    toast.success("CSV exported")
+    toast.success("CSV экспортирован")
   }
 
   if (loading) {
@@ -162,12 +162,12 @@ export default function AdminProblemsPage() {
     <div className="p-6">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Problems</h1>
-          <p className="text-muted-foreground">Manage and review all reported problems</p>
+          <h1 className="text-2xl font-bold">Проблемы</h1>
+          <p className="text-muted-foreground">Управление и просмотр всех зарегистрированных проблем</p>
         </div>
         <Button variant="outline" className="gap-2" onClick={exportCSV}>
           <Download className="h-4 w-4" />
-          Export CSV
+          Экспорт CSV
         </Button>
       </div>
 
@@ -176,7 +176,7 @@ export default function AdminProblemsPage() {
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search problems..."
+              placeholder="Поиск проблем..."
               className="h-9 pl-9"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0) }}
@@ -184,10 +184,10 @@ export default function AdminProblemsPage() {
           </div>
           <Select value={catFilter} onValueChange={(v) => { setCatFilter(v); setPage(0) }}>
             <SelectTrigger className="h-9 w-40">
-              <SelectValue placeholder="Category" />
+              <SelectValue placeholder="Категория" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="all">Все категории</SelectItem>
               <SelectItem value="roads">Дороги</SelectItem>
               <SelectItem value="light">Освещение</SelectItem>
               <SelectItem value="water">Водоснабжение</SelectItem>
@@ -197,26 +197,26 @@ export default function AdminProblemsPage() {
           </Select>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0) }}>
             <SelectTrigger className="h-9 w-36">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="Статус" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="new">New</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="resolved">Resolved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="all">Все статусы</SelectItem>
+              <SelectItem value="new">Новая</SelectItem>
+              <SelectItem value="confirmed">Подтверждена</SelectItem>
+              <SelectItem value="in_progress">В работе</SelectItem>
+              <SelectItem value="resolved">Решена</SelectItem>
+              <SelectItem value="rejected">Отклонена</SelectItem>
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(0) }}>
             <SelectTrigger className="h-9 w-36">
-              <SelectValue placeholder="Priority" />
+              <SelectValue placeholder="Приоритет" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Priority</SelectItem>
-              <SelectItem value="critical">Critical</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="all">Все приоритеты</SelectItem>
+              <SelectItem value="critical">Критический</SelectItem>
+              <SelectItem value="medium">Средний</SelectItem>
+              <SelectItem value="low">Низкий</SelectItem>
             </SelectContent>
           </Select>
         </CardContent>
@@ -225,21 +225,21 @@ export default function AdminProblemsPage() {
       {selectedIds.length > 0 && (
         <Card className="mb-4">
           <CardContent className="flex flex-wrap items-center gap-3 py-3">
-            <span className="text-sm font-medium">{selectedIds.length} selected</span>
+            <span className="text-sm font-medium">Выбрано: {selectedIds.length}</span>
             <Select onValueChange={(v) => bulkChangeStatus(v)}>
               <SelectTrigger className="h-8 w-40 text-xs">
-                <SelectValue placeholder="Change status..." />
+                <SelectValue placeholder="Изменить статус..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="new">Новая</SelectItem>
+                <SelectItem value="confirmed">Подтверждена</SelectItem>
+                <SelectItem value="in_progress">В работе</SelectItem>
+                <SelectItem value="resolved">Решена</SelectItem>
+                <SelectItem value="rejected">Отклонена</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedIds([])}>
-              Clear selection
+              Очистить выбор
             </Button>
           </CardContent>
         </Card>
@@ -253,14 +253,14 @@ export default function AdminProblemsPage() {
                 <TableHead className="w-10">
                   <Checkbox checked={selectedIds.length === pageData.length && pageData.length > 0} onCheckedChange={toggleAll} />
                 </TableHead>
-                <TableHead>Problem</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>District</TableHead>
-                <TableHead className="text-right">Votes</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Action</TableHead>
+                <TableHead>Проблема</TableHead>
+                <TableHead>Категория</TableHead>
+                <TableHead>Статус</TableHead>
+                <TableHead>Приоритет</TableHead>
+                <TableHead>Район</TableHead>
+                <TableHead className="text-right">Голосов</TableHead>
+                <TableHead>Дата</TableHead>
+                <TableHead>Действие</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -293,11 +293,11 @@ export default function AdminProblemsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="new">New</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="resolved">Resolved</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
+                        <SelectItem value="new">Новая</SelectItem>
+                        <SelectItem value="confirmed">Подтверждена</SelectItem>
+                        <SelectItem value="in_progress">В работе</SelectItem>
+                        <SelectItem value="resolved">Решена</SelectItem>
+                        <SelectItem value="rejected">Отклонена</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
@@ -311,13 +311,13 @@ export default function AdminProblemsPage() {
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+            Показано {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} из {filtered.length}
           </p>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm">Page {page + 1} of {totalPages}</span>
+            <span className="text-sm">Страница {page + 1} из {totalPages}</span>
             <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
               <ChevronRight className="h-4 w-4" />
             </Button>

@@ -9,11 +9,11 @@ const geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: {
-    default: "CityFix - Report & Fix City Problems",
+    default: "CityFix — Сообщай о проблемах города",
     template: "%s | CityFix",
   },
   description:
-    "CityFix helps citizens report city problems, vote on priorities, and track resolutions. Join your community in making your city better.",
+    "CityFix помогает жителям сообщать о городских проблемах, голосовать за важные вопросы и отслеживать их решение. Сделаем город лучше вместе.",
   generator: "v0.app",
   icons: {
     icon: [

@@ -15,9 +15,9 @@ import {
 import { Button } from "@/components/ui/button"
 
 const navItems = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/map", label: "Map Management", icon: Map },
-  { href: "/admin/problems", label: "Problems Table", icon: Table2 },
+  { href: "/admin/dashboard", label: "Панель управления", icon: LayoutDashboard },
+  { href: "/admin/map", label: "Управление картой", icon: Map },
+  { href: "/admin/problems", label: "Таблица проблем", icon: Table2 },
 ]
 
 export function AdminSidebar() {
@@ -26,6 +26,7 @@ export function AdminSidebar() {
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-border bg-sidebar">
+      {/* Логотип */}
       <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
         <Link href="/admin/dashboard" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
@@ -34,10 +35,14 @@ export function AdminSidebar() {
           <span className="text-lg font-bold text-sidebar-foreground">CityFix</span>
         </Link>
       </div>
+
+      {/* Админ панель */}
       <div className="mx-3 mt-4 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2">
         <Shield className="h-4 w-4 text-sidebar-primary" />
-        <span className="text-xs font-semibold text-sidebar-foreground">Admin Panel</span>
+        <span className="text-xs font-semibold text-sidebar-foreground">Панель администратора</span>
       </div>
+
+      {/* Навигация */}
       <nav className="flex-1 px-3 py-4">
         <ul className="flex flex-col gap-1">
           {navItems.map((item) => {
@@ -61,6 +66,8 @@ export function AdminSidebar() {
           })}
         </ul>
       </nav>
+
+      {/* Выход */}
       <div className="border-t border-sidebar-border p-3">
         <Button
           variant="ghost"
@@ -71,7 +78,7 @@ export function AdminSidebar() {
           }}
         >
           <LogOut className="h-4 w-4" />
-          Sign Out
+          Выйти
         </Button>
       </div>
     </aside>

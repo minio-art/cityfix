@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react"
 
 const stats = [
-  { label: "Problems Reported", value: 12450, suffix: "+" },
-  { label: "Problems Resolved", value: 8320, suffix: "+" },
-  { label: "Active Citizens", value: 34200, suffix: "+" },
-  { label: "Cities Covered", value: 48, suffix: "" },
+  { label: "Сообщений о проблемах", value: 12450, suffix: "+" },
+  { label: "Решённых проблем", value: 8320, suffix: "+" },
+  { label: "Активных жителей", value: 34200, suffix: "+" },
+  { label: "Городов", value: 48, suffix: "" },
 ]
 
 function AnimatedNumber({
@@ -51,7 +51,10 @@ function AnimatedNumber({
   }, [value])
 
   return (
-    <div ref={ref} className="text-4xl font-bold text-foreground tabular-nums md:text-5xl">
+    <div
+      ref={ref}
+      className="text-4xl font-bold text-foreground tabular-nums md:text-5xl"
+    >
       {displayed.toLocaleString()}
       {suffix}
     </div>
@@ -62,14 +65,17 @@ export function StatsSection() {
   return (
     <section className="bg-card py-20 md:py-28">
       <div className="mx-auto max-w-7xl px-4">
+        
         <div className="mb-16 text-center">
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-primary">
-            Impact
+            Наши результаты
           </p>
+
           <h2 className="text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            Making a real difference
+            Реальные изменения в цифрах
           </h2>
         </div>
+
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {stats.map((stat) => (
             <div key={stat.label} className="text-center">
@@ -80,6 +86,7 @@ export function StatsSection() {
             </div>
           ))}
         </div>
+
       </div>
     </section>
   )

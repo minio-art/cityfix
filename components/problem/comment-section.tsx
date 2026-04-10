@@ -34,7 +34,7 @@ export function CommentSection({ problemId }: { problemId: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          Comments ({comments.length})
+          Комментарии ({comments.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -50,10 +50,10 @@ export function CommentSection({ problemId }: { problemId: string }) {
               <div className="flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-medium text-foreground">
-                    {author?.name || "Unknown"}
+                    {author?.name || "Неизвестно"}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(comment.createdAt).toLocaleDateString()}
+                    {new Date(comment.createdAt).toLocaleDateString("ru-RU")}
                   </span>
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -66,7 +66,7 @@ export function CommentSection({ problemId }: { problemId: string }) {
 
         <form onSubmit={handleSubmit} className="mt-2 flex gap-2">
           <Textarea
-            placeholder="Add a comment..."
+            placeholder="Добавить комментарий..."
             rows={2}
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -74,7 +74,7 @@ export function CommentSection({ problemId }: { problemId: string }) {
           />
           <Button type="submit" size="icon" className="shrink-0 self-end">
             <Send className="h-4 w-4" />
-            <span className="sr-only">Send comment</span>
+            <span className="sr-only">Отправить комментарий</span>
           </Button>
         </form>
       </CardContent>

@@ -21,21 +21,27 @@ export function AppHeader() {
     <header className="flex h-16 items-center justify-between border-b border-border bg-background px-6">
       <div>
         <h2 className="text-lg font-semibold text-foreground">
-          {state.currentUser ? `Welcome, ${state.currentUser.name}` : "CityFix"}
+          {state.currentUser
+            ? `Добро пожаловать, ${state.currentUser.name}`
+            : "CityFix"}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {state.currentUser?.city || "San Francisco"}
+          {state.currentUser?.city || "Сан-Франциско"}
         </p>
       </div>
+
       <div className="flex items-center gap-2">
+        {/* Переключатель темы */}
         <button
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
           className="relative rounded-md p-2 text-muted-foreground transition-colors hover:text-foreground"
         >
           <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute top-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
+          <span className="sr-only">Сменить тему</span>
         </button>
+
+        {/* Уведомления */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
@@ -45,17 +51,20 @@ export function AppHeader() {
                   {unreadCount}
                 </Badge>
               )}
-              <span className="sr-only">Notifications</span>
+              <span className="sr-only">Уведомления</span>
             </Button>
           </DropdownMenuTrigger>
+
           <DropdownMenuContent align="end" className="w-80">
             {state.notifications.length === 0 ? (
-              <DropdownMenuItem disabled>No notifications</DropdownMenuItem>
+              <DropdownMenuItem disabled>Нет уведомлений</DropdownMenuItem>
             ) : (
               state.notifications.slice(0, 5).map((notif) => (
                 <DropdownMenuItem
                   key={notif.id}
-                  onClick={() => dispatch({ type: "MARK_NOTIFICATION_READ", payload: notif.id })}
+                  onClick={() =>
+                    dispatch({ type: "MARK_NOTIFICATION_READ", payload: notif.id })
+                  }
                   className="flex flex-col items-start gap-1"
                 >
                   <span className="text-sm font-medium">{notif.title}</span>

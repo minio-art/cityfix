@@ -12,10 +12,10 @@ export function StatusTimeline({ problemId }: { problemId: string }) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Status History</CardTitle>
+          <CardTitle className="text-sm">История статусов</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No status changes yet</p>
+          <p className="text-sm text-muted-foreground">Изменений статуса пока нет</p>
         </CardContent>
       </Card>
     )
@@ -24,7 +24,7 @@ export function StatusTimeline({ problemId }: { problemId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Status History</CardTitle>
+        <CardTitle className="text-sm">История статусов</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-4">
@@ -48,8 +48,8 @@ export function StatusTimeline({ problemId }: { problemId: string }) {
                     <p className="mt-0.5 text-xs text-muted-foreground">{change.comment}</p>
                   )}
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    by {user?.name || "System"} &middot;{" "}
-                    {new Date(change.createdAt).toLocaleDateString()}
+                    от {user?.name || "Система"} &middot;{" "}
+                    {new Date(change.createdAt).toLocaleDateString("ru-RU")}
                   </p>
                 </div>
               </div>

@@ -41,25 +41,24 @@ interface MapCluster {
 }
 
 export default function AdminMapPage() {
-  const { state, dispatch } = useApp()
+  const { state } = useApp()
   const [allClusters, setAllClusters] = useState<MapCluster[]>([])
   const [selectedCluster, setSelectedCluster] = useState<MapCluster | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchData()
-    
-    const handleStatusUpdate = () => {
-      fetchData()
-    }
+
+    const handleStatusUpdate = () => fetchData()
     window.addEventListener('status-updated', handleStatusUpdate)
     return () => window.removeEventListener('status-updated', handleStatusUpdate)
   }, [])
 
   async function fetchData() {
+    setLoading(true)
     try {
       const data: ApiCluster[] = await getClusters()
-      
+
       const formattedClusters: MapCluster[] = data.map((item) => ({
         id: String(item.id),
         categoryId: item.type,
@@ -75,57 +74,40 @@ export default function AdminMapPage() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }))
-      
+
       setAllClusters(formattedClusters)
     } catch (error) {
-      console.error('Ошибка загрузки:', error)
+      console.error('Ошибка загрузки кластеров:', error)
+      toast.error("Ошибка загрузки кластеров")
     } finally {
       setLoading(false)
     }
   }
 
-  // Применяем фильтры к кластерам
   const filteredClusters = useMemo(() => {
     let filtered = [...allClusters]
-    
-    // Фильтр по категориям
-    if (state.filters.categories.length > 0) {
-      filtered = filtered.filter(cluster => 
-        state.filters.categories.includes(cluster.categoryId)
-      )
+
+    if (state.filters.categories.length) {
+      filtered = filtered.filter(c => state.filters.categories.includes(c.categoryId))
     }
-    
-    // Фильтр по статусам
-    if (state.filters.statuses.length > 0) {
-      filtered = filtered.filter(cluster => 
-        state.filters.statuses.includes(cluster.status as any)
-      )
+    if (state.filters.statuses.length) {
+      filtered = filtered.filter(c => state.filters.statuses.includes(c.status))
     }
-    
-    // Фильтр по приоритетам
-    if (state.filters.priorities.length > 0) {
-      filtered = filtered.filter(cluster => 
-        state.filters.priorities.includes(cluster.priority as any)
-      )
+    if (state.filters.priorities.length) {
+      filtered = filtered.filter(c => state.filters.priorities.includes(c.priority))
     }
-    
-    // Фильтр по районам
-    if (state.filters.districts.length > 0) {
-      filtered = filtered.filter(cluster => 
-        state.filters.districts.includes(cluster.district)
-      )
+    if (state.filters.districts.length) {
+      filtered = filtered.filter(c => state.filters.districts.includes(c.district))
     }
-    
-    // Поиск по тексту
     if (state.filters.searchQuery) {
       const query = state.filters.searchQuery.toLowerCase()
-      filtered = filtered.filter(cluster => 
-        cluster.title?.toLowerCase().includes(query) ||
-        cluster.district?.toLowerCase().includes(query) ||
-        cluster.categoryId?.toLowerCase().includes(query)
+      filtered = filtered.filter(c =>
+        c.title.toLowerCase().includes(query) ||
+        c.district.toLowerCase().includes(query) ||
+        c.categoryId.toLowerCase().includes(query)
       )
     }
-    
+
     return filtered
   }, [allClusters, state.filters])
 
@@ -139,16 +121,16 @@ export default function AdminMapPage() {
         },
         body: JSON.stringify({ status: newStatus })
       })
-      
+
       if (response.ok) {
-        toast.success("Статус кластера обновлен")
+        toast.success("Статус кластера обновлён")
         fetchData()
         setSelectedCluster(null)
       } else {
-        toast.error("Ошибка обновления")
+        toast.error("Ошибка обновления статуса")
       }
-    } catch (error) {
-      toast.error("Ошибка соединения")
+    } catch {
+      toast.error("Ошибка соединения с сервером")
     }
   }
 
@@ -158,6 +140,7 @@ export default function AdminMapPage() {
 
   return (
     <div className="relative flex h-full">
+      {/* Фильтры */}
       <div className="hidden w-72 shrink-0 border-r lg:block">
         <MapFilters />
       </div>
@@ -170,12 +153,13 @@ export default function AdminMapPage() {
           onClusterClick={(c) => setSelectedCluster(c)}
         />
 
+        {/* Мобильный фильтр */}
         <div className="absolute left-3 top-3 z-[1000] lg:hidden">
           <Sheet>
             <SheetTrigger asChild>
               <Button size="sm" variant="secondary" className="gap-2 shadow-lg">
                 <SlidersHorizontal className="h-4 w-4" />
-                Filters
+                Фильтры
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-80 p-0">
@@ -184,14 +168,15 @@ export default function AdminMapPage() {
           </Sheet>
         </div>
 
+        {/* Карточка выбранного кластера */}
         {selectedCluster && (
           <div className="absolute bottom-6 left-1/2 z-[1000] w-96 -translate-x-1/2">
             <Card className="shadow-xl">
-              <CardHeader className="pb-2 flex flex-row items-start justify-between">
+              <CardHeader className="pb-2 flex items-start justify-between">
                 <div>
                   <CardTitle className="text-base">{selectedCluster.title}</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    {selectedCluster.categoryId} · {selectedCluster.district} · {selectedCluster.complaintsCount} complaints
+                    {selectedCluster.categoryId} · {selectedCluster.district} · {selectedCluster.complaintsCount} жалоб
                   </p>
                 </div>
                 <button onClick={() => setSelectedCluster(null)} className="text-muted-foreground hover:text-foreground">
@@ -205,13 +190,24 @@ export default function AdminMapPage() {
                     selectedCluster.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-green-100 text-green-700'
                   }>
-                    {selectedCluster.priority}
+                    {selectedCluster.priority === "critical"
+                      ? "Критический"
+                      : selectedCluster.priority === "medium"
+                      ? "Средний"
+                      : "Низкий"}
                   </Badge>
-                  <Badge variant="outline">{selectedCluster.status}</Badge>
+
+                  <Badge variant="outline">
+                    {selectedCluster.status === "new"
+                      ? "Новый"
+                      : selectedCluster.status === "in_progress"
+                      ? "В работе"
+                      : "Решён"}
+                  </Badge>
                 </div>
-                
+
                 <div>
-                  <label className="text-xs text-muted-foreground">Change Status</label>
+                  <label className="text-xs text-muted-foreground">Изменить статус</label>
                   <Select 
                     value={selectedCluster.status}
                     onValueChange={(v) => updateClusterStatus(Number(selectedCluster.id), v)}
@@ -220,9 +216,9 @@ export default function AdminMapPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="new">Новый</SelectItem>
+                      <SelectItem value="in_progress">В работе</SelectItem>
+                      <SelectItem value="resolved">Решён</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -233,7 +229,4 @@ export default function AdminMapPage() {
       </div>
     </div>
   )
-  
-
-  
 }

@@ -20,7 +20,7 @@ export function VoteButton({ problemId }: { problemId: string }) {
       }
     >
       <ThumbsUp className="h-4 w-4" />
-      {hasVoted ? "Supported" : "Support This"}
+      {hasVoted ? "Поддержано" : "Поддержать"}
     </Button>
   )
 }

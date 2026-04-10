@@ -39,7 +39,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [myReports, setMyReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
-  const [votedReports, setVotedReports] = useState<Report[]>([]) // ← ВОТ ЭТО ВАЖНО
+  const [votedReports, setVotedReports] = useState<Report[]>([])
   const [activeTab, setActiveTab] = useState("reports")
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export default function ProfilePage() {
       const votes = await getUserVotes()
       setVotedReports(votes)
     } catch (error) {
-      console.error("Error fetching profile data:", error)
+      console.error("Ошибка загрузки данных профиля:", error)
     } finally {
       setLoading(false)
     }
@@ -80,9 +80,9 @@ export default function ProfilePage() {
       <div className="mx-auto max-w-4xl p-6 text-center">
         <Card>
           <CardContent className="py-12">
-            <p className="text-muted-foreground">Please log in to view your profile</p>
+            <p className="text-muted-foreground">Пожалуйста, войдите чтобы просмотреть профиль</p>
             <Link href="/login" className="mt-4 inline-block text-primary hover:underline">
-              Go to Login
+              Войти
             </Link>
           </CardContent>
         </Card>
@@ -92,12 +92,12 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-4xl p-6">
-      {/* Profile card */}
+      {/* Карточка профиля */}
       <Card className="mb-6">
         <CardContent className="flex flex-col items-center gap-6 pt-6 sm:flex-row">
           <Avatar className="h-20 w-20">
             <AvatarFallback className="bg-primary/10 text-2xl text-primary">
-              {user.name?.charAt(0) || user.username?.charAt(0) || "U"}
+              {user.name?.charAt(0) || user.username?.charAt(0) || "П"}
             </AvatarFallback>
           </Avatar>
           <div className="text-center sm:text-left">
@@ -106,15 +106,15 @@ export default function ProfilePage() {
             <div className="mt-2 flex flex-wrap justify-center gap-4 text-sm text-muted-foreground sm:justify-start">
               <span className="flex items-center gap-1">
                 <CalendarDays className="h-3.5 w-3.5" />
-                Joined {user.created_at ? new Date(user.created_at).toLocaleDateString() : "Recently"}
+                Присоединился {user.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : "Недавно"}
               </span>
               <span className="flex items-center gap-1">
                 <FileText className="h-3.5 w-3.5" />
-                {myReports.length} reports
+                {myReports.length} сообщений
               </span>
               <span className="flex items-center gap-1">
                 <ThumbsUp className="h-3.5 w-3.5" />
-                {votedReports.length} voted
+                Проголосовано: {votedReports.length}
               </span>
             </div>
           </div>
@@ -125,11 +125,11 @@ export default function ProfilePage() {
         <TabsList className="w-full justify-start">
           <TabsTrigger value="reports" className="gap-1">
             <FileText className="h-3.5 w-3.5" />
-            My Reports ({myReports.length})
+            Мои сообщения ({myReports.length})
           </TabsTrigger>
           <TabsTrigger value="voted" className="gap-1">
             <ThumbsUp className="h-3.5 w-3.5" />
-            Voted ({votedReports.length})
+            Отмеченные ({votedReports.length})
           </TabsTrigger>
         </TabsList>
 
@@ -138,9 +138,9 @@ export default function ProfilePage() {
             {myReports.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  You have not reported any problems yet.
+                  Вы еще не сообщили ни о каких проблемах.
                   <Link href="/problem/create" className="ml-2 text-primary hover:underline">
-                    Create your first report
+                    Создать первое сообщение
                   </Link>
                 </CardContent>
               </Card>
@@ -157,7 +157,7 @@ export default function ProfilePage() {
             {votedReports.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  You have not voted on any problems yet.
+                  Вы еще не голосовали ни за одну проблему.
                 </CardContent>
               </Card>
             ) : (
@@ -206,7 +206,7 @@ function ProblemRow({ problem }: { problem: Report }) {
               {problem.votesCount || 0}
             </span>
             <span className="text-xs">
-              {new Date(problem.created_at).toLocaleDateString()}
+              {new Date(problem.created_at).toLocaleDateString('ru-RU')}
             </span>
           </div>
         </CardContent>

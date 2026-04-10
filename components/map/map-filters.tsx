@@ -12,16 +12,16 @@ import { Search, X } from "lucide-react"
 import type { Status, Priority } from "@/lib/types"
 
 const statuses: { value: Status; label: string }[] = [
-  { value: "new", label: "New" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "resolved", label: "Resolved" },
+  { value: "new", label: "Новые" },
+  { value: "confirmed", label: "Подтверждено" },
+  { value: "in_progress", label: "В процессе" },
+  { value: "resolved", label: "Решено" },
 ]
 
 const priorities: { value: Priority; label: string; color: string }[] = [
-  { value: "critical", label: "Critical", color: "bg-red-500" },
-  { value: "medium", label: "Medium", color: "bg-amber-500" },
-  { value: "low", label: "Low", color: "bg-green-500" },
+  { value: "critical", label: "Критический", color: "bg-red-500" },
+  { value: "medium", label: "Средний", color: "bg-amber-500" },
+  { value: "low", label: "Низкий", color: "bg-green-500" },
 ]
 
 export function MapFilters() {
@@ -79,11 +79,11 @@ export function MapFilters() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h3 className="text-sm font-semibold text-foreground">Filters</h3>
+        <h3 className="text-sm font-semibold text-foreground">Фильтры</h3>
         {activeCount > 0 && (
           <Button variant="ghost" size="sm" onClick={clearAll} className="h-7 gap-1 text-xs">
             <X className="h-3 w-3" />
-            Clear ({activeCount})
+            Сбросить ({activeCount})
           </Button>
         )}
       </div>
@@ -91,7 +91,7 @@ export function MapFilters() {
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search clusters..."
+            placeholder="Поиск по кластерам..."
             className="h-9 pl-9 text-sm"
             value={filters.searchQuery}
             onChange={(e) =>
@@ -105,7 +105,7 @@ export function MapFilters() {
           {/* Priority */}
           <div>
             <Label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Priority
+              Приоритет
             </Label>
             <div className="flex flex-wrap gap-2">
               {priorities.map((p) => (
@@ -125,7 +125,7 @@ export function MapFilters() {
           {/* Status */}
           <div>
             <Label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Status
+              Статус
             </Label>
             <div className="flex flex-col gap-2">
               {statuses.map((s) => (
@@ -146,7 +146,7 @@ export function MapFilters() {
           {/* Category */}
           <div>
             <Label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Category
+              Категория
             </Label>
             <div className="flex flex-col gap-2">
               {categories.map((c) => (
@@ -167,7 +167,7 @@ export function MapFilters() {
           {/* District */}
           <div>
             <Label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              District
+              Район
             </Label>
             <div className="flex flex-col gap-2">
               {districts.map((d) => (

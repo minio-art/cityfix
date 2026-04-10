@@ -155,8 +155,13 @@ export default function ClusterDetailPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => router.push(`/problem/${issue.id}`)}
-                      >
+                        onClick={() =>
+                       router.push(
+                           isAdmin
+                            ? `/admin/problem/${issue.id}`
+                             : `/problem/${issue.id}`
+  )
+}                      >
                         Подробнее
                       </Button>
                       {isAdmin && (

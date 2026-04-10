@@ -43,16 +43,16 @@ export default function AdminDashboardPage() {
     try {
       const issues = await getIssues()
       const clusters = await getClusters()
-      
+
       const active = issues.filter((i: any) => i.status !== 'resolved')
       const resolved = issues.filter((i: any) => i.status === 'resolved')
       const critical = clusters.filter((c: any) => c.priority === 'critical')
-      
+
       const byCat: Record<string, number> = {}
       issues.forEach((i: any) => {
         byCat[i.category] = (byCat[i.category] || 0) + 1
       })
-      
+
       setStats({
         totalProblems: issues.length,
         activeIssues: active.length,
@@ -69,23 +69,26 @@ export default function AdminDashboardPage() {
   }
 
   const categoryData = Object.entries(stats.byCategory)
-    .map(([name, count]) => ({ name: name.length > 12 ? name.substring(0, 12) + "..." : name, count }))
+    .map(([name, count]) => ({
+      name: name.length > 12 ? name.substring(0, 12) + "..." : name,
+      count
+    }))
     .sort((a, b) => b.count - a.count)
 
   const trendData = [
-    { month: "Jul", reports: 0, resolved: 0 },
-    { month: "Aug", reports: 0, resolved: 0 },
-    { month: "Sep", reports: 0, resolved: 0 },
-    { month: "Oct", reports: 0, resolved: 0 },
-    { month: "Nov", reports: 0, resolved: 0 },
-    { month: "Dec", reports: stats.totalProblems, resolved: stats.resolved },
+    { month: "Июл", reports: 0, resolved: 0 },
+    { month: "Авг", reports: 0, resolved: 0 },
+    { month: "Сен", reports: 0, resolved: 0 },
+    { month: "Окт", reports: 0, resolved: 0 },
+    { month: "Ноя", reports: 0, resolved: 0 },
+    { month: "Дек", reports: stats.totalProblems, resolved: stats.resolved },
   ]
 
   const statCards = [
-    { title: "Total Problems", value: stats.totalProblems, icon: FileText, color: "text-primary", bgColor: "bg-primary/10" },
-    { title: "Active Issues", value: stats.activeIssues, icon: Clock, color: "text-amber-500", bgColor: "bg-amber-500/10" },
-    { title: "Resolved", value: stats.resolved, icon: CheckCircle2, color: "text-green-500", bgColor: "bg-green-500/10" },
-    { title: "Critical Clusters", value: stats.criticalClusters, icon: AlertTriangle, color: "text-red-500", bgColor: "bg-red-500/10" },
+    { title: "Всего проблем", value: stats.totalProblems, icon: FileText, color: "text-primary", bgColor: "bg-primary/10" },
+    { title: "Активные", value: stats.activeIssues, icon: Clock, color: "text-amber-500", bgColor: "bg-amber-500/10" },
+    { title: "Решённые", value: stats.resolved, icon: CheckCircle2, color: "text-green-500", bgColor: "bg-green-500/10" },
+    { title: "Критические кластеры", value: stats.criticalClusters, icon: AlertTriangle, color: "text-red-500", bgColor: "bg-red-500/10" },
   ]
 
   if (loading) {
@@ -95,8 +98,8 @@ export default function AdminDashboardPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Overview of city problems and activity</p>
+        <h1 className="text-2xl font-bold">Панель управления</h1>
+        <p className="text-muted-foreground">Обзор проблем города и активности пользователей</p>
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -118,16 +121,16 @@ export default function AdminDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Problems by Category</CardTitle>
+            <CardTitle className="text-base">Проблемы по категориям</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={categoryData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.5 0 0 / 0.1)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="oklch(0.5 0 0 / 0.5)" />
-                <YAxis tick={{ fontSize: 11 }} stroke="oklch(0.5 0 0 / 0.5)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="#888" />
+                <YAxis tick={{ fontSize: 11 }} stroke="#888" />
                 <Tooltip />
-                <Bar dataKey="count" fill="oklch(0.45 0.18 255)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -135,17 +138,17 @@ export default function AdminDashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Monthly Trend</CardTitle>
+            <CardTitle className="text-base">Месячная динамика</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.5 0 0 / 0.1)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="oklch(0.5 0 0 / 0.5)" />
-                <YAxis tick={{ fontSize: 11 }} stroke="oklch(0.5 0 0 / 0.5)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#888" />
+                <YAxis tick={{ fontSize: 11 }} stroke="#888" />
                 <Tooltip />
-                <Line type="monotone" dataKey="reports" stroke="oklch(0.45 0.18 255)" strokeWidth={2} dot={{ r: 4 }} name="Reports" />
-                <Line type="monotone" dataKey="resolved" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} name="Resolved" />
+                <Line type="monotone" dataKey="reports" stroke="#6366f1" strokeWidth={2} dot={{ r: 4 }} name="Проблемы" />
+                <Line type="monotone" dataKey="resolved" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} name="Решено" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -154,7 +157,7 @@ export default function AdminDashboardPage() {
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle className="text-base">Recent Reports</CardTitle>
+          <CardTitle className="text-base">Последние отчёты</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-3">

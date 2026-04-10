@@ -6,35 +6,41 @@ export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-background">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.45_0.18_255/0.08),transparent_60%)]" />
+      
       <div className="relative mx-auto flex max-w-7xl flex-col items-center px-4 pb-20 pt-24 text-center md:pb-32 md:pt-32">
+        
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5">
           <MapPin className="h-3.5 w-3.5 text-primary" />
           <span className="text-xs font-medium text-muted-foreground">
-            Smart city problem reporting
+            Умная система сообщений о проблемах города
           </span>
         </div>
+
         <h1 className="max-w-4xl text-balance text-4xl font-bold leading-tight tracking-tight text-foreground md:text-6xl lg:text-7xl">
-          Report. Prioritize.{" "}
-          <span className="text-primary">Fix your city.</span>
+          Сообщай. Приоритизируй.{" "}
+          <span className="text-primary">Улучшай свой город.</span>
         </h1>
+
         <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground md:text-xl">
-          CityFix intelligently clusters similar complaints, visualizes priorities on
-          an interactive map, and helps your city resolve problems faster.
+          CityFix автоматически объединяет похожие жалобы, показывает приоритеты на интерактивной карте и помогает быстрее решать городские проблемы.
         </p>
+
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
           <Button asChild size="lg" className="gap-2 px-8">
             <Link href="/register">
-              Get Started
+              Начать
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
+
           <Button asChild variant="outline" size="lg" className="px-8">
-            <Link href="/#how-it-works">Learn More</Link>
+            <Link href="/#how-it-works">Узнать больше</Link>
           </Button>
         </div>
 
         <div className="mt-16 w-full max-w-4xl">
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xl">
+            
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <div className="h-3 w-3 rounded-full bg-red-400" />
               <div className="h-3 w-3 rounded-full bg-amber-400" />
@@ -43,10 +49,12 @@ export function HeroSection() {
                 cityfix.app/map
               </span>
             </div>
+
             <div className="relative aspect-[16/9] bg-muted">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="relative h-full w-full bg-[oklch(0.92_0.01_200)] dark:bg-[oklch(0.22_0.01_200)]">
-                  {/* Simulated map with markers */}
+                  
+                  {/* Маркеры на карте */}
                   <div className="absolute left-[20%] top-[30%] flex h-10 w-10 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-primary-foreground shadow-lg">
                     47
                   </div>
@@ -65,11 +73,14 @@ export function HeroSection() {
                   <div className="absolute left-[45%] top-[20%] flex h-7 w-7 items-center justify-center rounded-full bg-green-500 text-xs font-bold text-primary-foreground shadow-lg">
                     11
                   </div>
-                  {/* Grid overlay */}
+
+                  {/* Сетка */}
                   <div className="absolute inset-0 bg-[linear-gradient(to_right,oklch(0.5_0_0/0.03)_1px,transparent_1px),linear-gradient(to_bottom,oklch(0.5_0_0/0.03)_1px,transparent_1px)] bg-[size:40px_40px]" />
+                
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </div>
