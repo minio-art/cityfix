@@ -25,9 +25,7 @@ export function AppHeader() {
             ? `Добро пожаловать, ${state.currentUser.name}`
             : "CityFix"}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          {state.currentUser?.city || "Сан-Франциско"}
-        </p>
+         
       </div>
 
       <div className="flex items-center gap-2">
