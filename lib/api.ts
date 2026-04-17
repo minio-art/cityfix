@@ -91,6 +91,17 @@ export async function getCurrentUser() {
   
   return response.json()
 }
+export async function getUserReports(userId: number) {
+  const response = await fetch(`/api/users/${userId}/reports`)
+  if (!response.ok) throw new Error('Failed to fetch user reports')
+  return response.json()
+}
+
+export async function getUserVotes(userId: number) {
+  const response = await fetch(`/api/users/${userId}/votes`)
+  if (!response.ok) throw new Error('Failed to fetch user votes')
+  return response.json()
+}
 
 export async function logout() {
   clearAuthToken()
