@@ -1,5 +1,6 @@
-const API_URL = "http://localhost:8001"
-
+const API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  ? 'http://localhost:8001'  // локально
+  : ''  // на сервере - используем текущий домен
 // ========== АУТЕНТИФИКАЦИЯ ==========
 
 let authToken: string | null = null
