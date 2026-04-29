@@ -1,33 +1,35 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from urllib.parse import quote_plus
 import os
 from dotenv import load_dotenv
 
 # Загружаем переменные окружения
 load_dotenv()
 
-# Получаем данные для подключения
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME", "cityfix")
-DB_PASSWORD = quote_plus(os.getenv("DB_PASSWORD", "postgres"))
+# Берем URL базы данных из переменной окружения
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Кодируем пароль
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is not set! "
+        "Please add it in Render Dashboard or .env file"
+    )
 
-# Формируем URL
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
+# Добавляем sslmode=require если его нет
+if "sslmode=require" not in DATABASE_URL:
+    # Добавляем ? или & в зависимости от того, есть ли уже параметры
+    separator = '?' if '?' not in DATABASE_URL else '&'
+    DATABASE_URL += f"{separator}sslmode=require"
 
-print(f"📁 Connecting to PostgreSQL at: {DB_HOST}:{DB_PORT}/{DB_NAME}")
+print(f"📁 Connecting to PostgreSQL at: {DATABASE_URL.split('@')[1].split('?')[0] if '@' in DATABASE_URL else 'database'}")
 
 # Создаем engine
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=3600,
-    echo=True  # Включите для отладки, потом поставьте False
+    echo=False  # Поставьте True только для отладки
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
