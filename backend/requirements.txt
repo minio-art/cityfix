@@ -11,6 +11,7 @@ python-multipart==0.0.6
 torch==2.5.1
 pydantic>=2.6.0
 python-dotenv==1.0.0
+torchvision==0.20.1
 pillow==11.2.1
 imagehash==4.3.1
 numpy>=1.26.0
