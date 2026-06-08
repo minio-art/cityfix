@@ -1,6 +1,6 @@
 const API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
   ? 'http://localhost:8001'
-  : 'https://cityfix-7.onrender.com'
+  : 'https://cityfix-9.onrender.com'
 // ========== АУТЕНТИФИКАЦИЯ ==========
 
 let authToken: string | null = null
