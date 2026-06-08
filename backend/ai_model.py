@@ -1,97 +1,142 @@
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
-from PIL import Image
 import io
 import os
+import hashlib
+from PIL import Image, ImageStat
 import numpy as np
 import imagehash
 
 class CityFixAIModel:
     def __init__(self):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {self.device}")
+        print("Initializing simplified AI model...")
         
         # Категории проблем
         self.categories = ['roads', 'light', 'water', 'trash', 'graffiti', 'buildings', 'trees', 'other']
-        self.num_classes = len(self.categories)
         
-        # Используем ResNet50 (более мощная модель)
-        self.model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
+        # Ключевые слова для определения категорий
+        self.category_keywords = {
+            'roads': ['яма', 'трещина', 'дорога', 'асфальт', 'разбитая', 'road', 'pothole', 'crack'],
+            'light': ['фонарь', 'освещение', 'свет', 'ламп', 'light', 'lamp', 'streetlight'],
+            'water': ['вода', 'труба', 'протечка', 'потоп', 'водоснабжение', 'water', 'pipe', 'leak'],
+            'trash': ['мусор', 'свалка', 'отходы', 'баки', 'trash', 'garbage', 'waste', 'dump'],
+            'graffiti': ['граффити', 'надпись', 'разрисован', 'graffiti', 'tag', 'spray'],
+            'buildings': ['здание', 'фасад', 'крыша', 'дом', 'building', 'facade', 'roof'],
+            'trees': ['дерево', 'ветка', 'парк', 'газон', 'tree', 'branch', 'park', 'lawn'],
+            'other': ['другое', 'other']
+        }
+    
+    def extract_image_features(self, image):
+        """Извлекает простые признаки изображения"""
+        stat = ImageStat.Stat(image)
         
-        # Заменяем последний слой
-        self.model.fc = nn.Linear(self.model.fc.in_features, self.num_classes)
+        r_mean, g_mean, b_mean = stat.mean[:3]
+        brightness = (r_mean + g_mean + b_mean) / 3 / 255
         
-        self.model = self.model.to(self.device)
-        self.model.eval()
+        return {
+            'brightness': brightness,
+            'r_mean': r_mean / 255,
+            'g_mean': g_mean / 255,
+            'b_mean': b_mean / 255,
+            'avg_color': 'green' if g_mean > r_mean and g_mean > b_mean else 
+                        'blue' if b_mean > r_mean and b_mean > g_mean else 
+                        'gray' if brightness < 0.3 else 'other'
+        }
+    
+    def predict_by_text(self, title, description):
+        """Предсказание на основе текстового описания"""
+        text = (title + " " + description).lower()
         
-        # Трансформации для изображений
-        self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                               std=[0.229, 0.224, 0.225])
-        ])
+        scores = {cat: 0 for cat in self.categories}
         
-        # Загружаем веса, если есть
-        model_path = os.path.join(os.path.dirname(__file__), "models", "cityfix_model.pth")
-        if os.path.exists(model_path):
-            print(f"Loading model from {model_path}")
-            self.model.load_state_dict(torch.load(model_path, map_location=self.device))
-            print("Model loaded successfully!")
+        for category, keywords in self.category_keywords.items():
+            for keyword in keywords:
+                if keyword.lower() in text:
+                    scores[category] += 1
+        
+        total = sum(scores.values())
+        if total > 0:
+            best_category = max(scores, key=scores.get)
+            confidence = min(0.9, scores[best_category] / total)
         else:
-            print("No pre-trained model found. Using default ResNet50.")
+            best_category = 'other'
+            confidence = 0.5
+        
+        return best_category, confidence
     
-    def predict(self, image_bytes):
-        """
-        Предсказывает категорию изображения
-        Возвращает топ-3 категории с уверенностью
-        """
+    def predict_by_image(self, image_bytes):
+        """Предсказание на основе изображения"""
         try:
-            # Открываем изображение
             image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-            
-            # Вычисляем хэш для проверки дубликатов
             phash = str(imagehash.phash(image))
+            features = self.extract_image_features(image)
             
-            # Преобразуем для модели
-            image_tensor = self.transform(image).unsqueeze(0).to(self.device)
-            
-            # Получаем предсказания
-            with torch.no_grad():
-                outputs = self.model(image_tensor)
-                probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
-            
-            # Получаем топ-3 предсказания
-            top3_prob, top3_idx = torch.topk(probabilities, 3)
-            
-            results = []
-            for i in range(3):
-                results.append({
-                    'category': self.categories[top3_idx[i]],
-                    'confidence': float(top3_prob[i])
-                })
+            if features['avg_color'] == 'green':
+                primary_category = 'trees'
+                confidence = 0.6
+            elif features['avg_color'] == 'blue':
+                primary_category = 'water'
+                confidence = 0.5
+            elif features['avg_color'] == 'gray' or features['brightness'] < 0.3:
+                primary_category = 'roads'
+                confidence = 0.5
+            else:
+                primary_category = 'other'
+                confidence = 0.4
             
             return {
-                'predictions': results,
-                'phash': phash,
-                'top_category': results[0]['category'],
-                'top_confidence': results[0]['confidence']
+                'primary_category': primary_category,
+                'confidence': confidence,
+                'phash': phash
             }
-            
         except Exception as e:
-            print(f"Error in prediction: {e}")
+            print(f"Error in image analysis: {e}")
             return {
-                'predictions': [{'category': 'other', 'confidence': 1.0}],
-                'phash': '',
-                'top_category': 'other',
-                'top_confidence': 1.0
+                'primary_category': 'other',
+                'confidence': 0.5,
+                'phash': ''
             }
     
-    def predict_batch(self, image_bytes_list):
-        """Предсказание для нескольких изображений"""
+    def predict(self, image_bytes=None, title="", description=""):
+        """Комбинированное предсказание"""
         results = []
-        for image_bytes in image_bytes_list:
-            results.append(self.predict(image_bytes))
-        return results
-    
+        
+        if title or description:
+            text_category, text_confidence = self.predict_by_text(title, description)
+            results.append({'source': 'text', 'category': text_category, 'confidence': text_confidence})
+        
+        if image_bytes:
+            image_result = self.predict_by_image(image_bytes)
+            results.append({'source': 'image', 'category': image_result['primary_category'], 
+                          'confidence': image_result['confidence'], 'phash': image_result['phash']})
+        
+        if len(results) == 2:
+            combined_scores = {}
+            for cat in self.categories:
+                text_score = next((r['confidence'] for r in results if r['source'] == 'text' and r['category'] == cat), 0)
+                image_score = next((r['confidence'] for r in results if r['source'] == 'image' and r['category'] == cat), 0)
+                combined_scores[cat] = text_score * 0.7 + image_score * 0.3
+            best_category = max(combined_scores, key=combined_scores.get)
+            best_confidence = combined_scores[best_category]
+        elif len(results) == 1:
+            best_category = results[0]['category']
+            best_confidence = results[0]['confidence']
+        else:
+            best_category = 'other'
+            best_confidence = 0.5
+        
+        all_predictions = [
+            {'category': best_category, 'confidence': best_confidence},
+            {'category': 'other', 'confidence': max(0.1, 1 - best_confidence)},
+            {'category': 'roads', 'confidence': 0.1}
+        ]
+        
+        return {
+            'predictions': all_predictions[:3],
+            'top_category': best_category,
+            'top_confidence': best_confidence,
+            'phash': results[0].get('phash', '') if results else ''
+        }
+
+model = CityFixAIModel()
+
+def get_model():
+    return model
