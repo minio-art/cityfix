@@ -9,16 +9,40 @@ import type {
   Notification,
 } from "./types"
 
-export const categories = [
-  { id: "roads", name: "Дороги", icon: "🛣️", color: "#FF6B6B" },
-  { id: "light", name: "Освещение", icon: "💡", color: "#FFD93D" },
-  { id: "water", name: "Водоснабжение", icon: "💧", color: "#4D96FF" },
-  { id: "trash", name: "Мусор", icon: "🗑️", color: "#6BCB77" },
-  { id: "graffiti", name: "Граффити", icon: "🎨", color: "#9D65C9" },
-  { id: "buildings", name: "Здания", icon: "🏢", color: "#9E9E9E" },
-  { id: "trees", name: "Деревья", icon: "🌳", color: "#4CAF50" },
-  { id: "other", name: "Другое", icon: "📌", color: "#795548" }
+// Категории с переводом
+export const categories: (Category & { name: Record<string, string> })[] = [
+  { id: "roads", name: { ru: "Дороги", kz: "Жолдар" }, icon: "🛣️", color: "#FF6B6B" },
+  { id: "light", name: { ru: "Освещение", kz: "Жарықтандыру" }, icon: "💡", color: "#FFD93D" },
+  { id: "water", name: { ru: "Водоснабжение", kz: "Сумен жабдықтау" }, icon: "💧", color: "#4D96FF" },
+  { id: "trash", name: { ru: "Мусор", kz: "Қоқыс" }, icon: "🗑️", color: "#6BCB77" },
+  { id: "graffiti", name: { ru: "Граффити", kz: "Граффити" }, icon: "🎨", color: "#9D65C9" },
+  { id: "buildings", name: { ru: "Здания", kz: "Ғимараттар" }, icon: "🏢", color: "#9E9E9E" },
+  { id: "trees", name: { ru: "Деревья", kz: "Ағаштар" }, icon: "🌳", color: "#4CAF50" },
+  { id: "other", name: { ru: "Другое", kz: "Басқа" }, icon: "📌", color: "#795548" }
 ]
+
+// Районы с переводом
+export const districts: { ru: string; kz: string }[] = [
+  { ru: "Алмалинский район", kz: "Алмалы ауданы" },
+  { ru: "Ауэзовский район", kz: "Әуезов ауданы" },
+  { ru: "Бостандыкский район", kz: "Бостандық ауданы" },
+  { ru: "Жетысуский район", kz: "Жетісу ауданы" },
+  { ru: "Медеуский район", kz: "Медеу ауданы" },
+  { ru: "Наурызбайский район", kz: "Наурызбай ауданы" },
+  { ru: "Турксибский район", kz: "Түрксіб ауданы" },
+]
+
+// Функция для получения названия района на нужном языке
+export function getDistrictName(district: { ru: string; kz: string }, locale: string): string {
+  return locale === 'kz' ? district.kz : district.ru
+}
+
+// Функция для получения названия категории на нужном языке
+export function getCategoryName(category: { name: Record<string, string> }, locale: string): string {
+  return category.name[locale as keyof typeof category.name] || category.name.ru
+}
+
+// Для обратной совместимости - массив строк районов (только русские названия)
 
 export const users: User[] = [
   {
@@ -149,7 +173,7 @@ export const problems: Problem[] = [
     title: "Не работают фонари на улице Гоголя",
     description:
       "Несколько уличных фонарей не работают уже несколько недель. Очень темно и небезопасно ночью.",
-    categoryId: "lighting",
+    categoryId: "light",
     latitude: 43.254,
     longitude: 76.931,
     address: "ул. Гоголя, угол ул. Пушкина",
@@ -169,7 +193,7 @@ export const problems: Problem[] = [
     title: "Переполненные мусорные баки в Центральном парке",
     description:
       "Мусорные баки в Центральном парке постоянно переполнены, особенно по выходным. Привлекает вредителей и создает антисанитарные условия.",
-    categoryId: "garbage",
+    categoryId: "trash",
     latitude: 43.257,
     longitude: 76.956,
     address: "Центральный парк культуры и отдыха",
@@ -189,7 +213,7 @@ export const problems: Problem[] = [
     title: "Сломанная скамейка в парке имени 28 гвардейцев-панфиловцев",
     description:
       "Скамейка в парке сломана и имеет острые края. Потенциальная опасность для посетителей.",
-    categoryId: "parks",
+    categoryId: "trees",
     latitude: 43.259,
     longitude: 76.955,
     address: "Парк имени 28 гвардейцев-панфиловцев",
@@ -209,7 +233,7 @@ export const problems: Problem[] = [
     title: "Отключение электричества на проспекте Сейфуллина",
     description:
       "Периодические отключения электроэнергии, затрагивающие предприятия вдоль проспекта. Происходят ежедневно в течение последней недели.",
-    categoryId: "electricity",
+    categoryId: "other",
     latitude: 43.237,
     longitude: 76.897,
     address: "пр. Сейфуллина, угол ул. Тимирязева",
@@ -229,7 +253,7 @@ export const problems: Problem[] = [
     title: "Повреждена остановка автобуса",
     description:
       "Остановка автобуса на проспекте Абая разбита. Стеклянные панели разбиты, скамейка сломана.",
-    categoryId: "transport",
+    categoryId: "buildings",
     latitude: 43.241,
     longitude: 76.908,
     address: "пр. Абая, ост. 'Дворец спорта'",
@@ -249,7 +273,7 @@ export const problems: Problem[] = [
     title: "Запах канализации в районе Арбата",
     description:
       "Сильный запах канализации из ливневых стоков. Множество жалоб от близлежащих предприятий и посетителей.",
-    categoryId: "sewage",
+    categoryId: "water",
     latitude: 43.262,
     longitude: 76.947,
     address: "ул. Жибек Жолы, угол ул. Панфилова",
@@ -289,7 +313,7 @@ export const problems: Problem[] = [
     title: "Упавшее дерево блокирует тротуар",
     description:
       "Большое дерево упало и блокирует тротуар на улице Шевченко. Пешеходы вынуждены идти по дороге.",
-    categoryId: "parks",
+    categoryId: "trees",
     latitude: 43.249,
     longitude: 76.938,
     address: "ул. Шевченко, угол ул. Курмангазы",
@@ -317,7 +341,7 @@ export const clusters: Cluster[] = [
     status: "confirmed",
     problemIds: ["prob-1", "prob-2"],
     complaintsCount: 79,
-    district: "Центр города",
+    district: "Медеуский район",
     title: "Проблемы с дорогами - Центр",
     createdAt: "2025-11-01T08:30:00Z",
     updatedAt: "2025-11-20T09:00:00Z",
@@ -339,7 +363,7 @@ export const clusters: Cluster[] = [
   },
   {
     id: "cluster-3",
-    categoryId: "lighting",
+    categoryId: "light",
     latitude: 43.254,
     longitude: 76.931,
     radius: 0.2,
@@ -354,7 +378,7 @@ export const clusters: Cluster[] = [
   },
   {
     id: "cluster-4",
-    categoryId: "garbage",
+    categoryId: "trash",
     latitude: 43.257,
     longitude: 76.956,
     radius: 0.2,
@@ -369,7 +393,7 @@ export const clusters: Cluster[] = [
   },
   {
     id: "cluster-5",
-    categoryId: "parks",
+    categoryId: "trees",
     latitude: 43.259,
     longitude: 76.955,
     radius: 0.3,
@@ -384,7 +408,7 @@ export const clusters: Cluster[] = [
   },
   {
     id: "cluster-6",
-    categoryId: "electricity",
+    categoryId: "other",
     latitude: 43.237,
     longitude: 76.897,
     radius: 0.4,
@@ -399,7 +423,7 @@ export const clusters: Cluster[] = [
   },
   {
     id: "cluster-7",
-    categoryId: "transport",
+    categoryId: "buildings",
     latitude: 43.241,
     longitude: 76.908,
     radius: 0.2,
@@ -414,7 +438,7 @@ export const clusters: Cluster[] = [
   },
   {
     id: "cluster-8",
-    categoryId: "sewage",
+    categoryId: "water",
     latitude: 43.262,
     longitude: 76.947,
     radius: 0.3,
@@ -444,7 +468,7 @@ export const clusters: Cluster[] = [
   },
   {
     id: "cluster-10",
-    categoryId: "parks",
+    categoryId: "trees",
     latitude: 43.249,
     longitude: 76.938,
     radius: 0.2,
@@ -493,12 +517,5 @@ export const notifications: Notification[] = [
   { id: "notif-3", userId: "user-1", title: "Проблема решена поблизости", message: "Проблема в вашем районе решена.", read: false, createdAt: "2025-11-18T09:00:00Z" },
 ]
 
-export const districts = [
-  "Алмалинский район",
-  "Ауэзовский район",
-  "Бостандыкский район",
-  "Жетысуский район",
-  "Медеуский район",
-  "Наурызбайский район",
-  "Турксибский район",
-]
+// Для обратной совместимости оставляем массив строк районов
+export const districtStrings = districts.map(d => d.ru)

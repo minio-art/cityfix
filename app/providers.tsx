@@ -1,9 +1,11 @@
+// app/providers.tsx
 "use client"
 
 import { ReactNode } from 'react'
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppProvider } from "@/lib/store"
-import { AuthProvider } from "@/hooks/useAuth"  // теперь .tsx
+import { AuthProvider } from "@/hooks/useAuth"
+import { LanguageProvider } from "@/contexts/LanguageContext"
 import { Toaster } from "@/components/ui/sonner"
 
 interface ProvidersProps {
@@ -13,17 +15,19 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <AuthProvider>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="light"
-        enableSystem
-        disableTransitionOnChange
-      >
-        <AppProvider>
-          {children}
-          <Toaster />
-        </AppProvider>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AppProvider>
+            {children}
+            <Toaster />
+          </AppProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </AuthProvider>
   )
 }

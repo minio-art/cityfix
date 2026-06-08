@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useApp } from "@/lib/store"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -14,15 +15,17 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-const navItems = [
-  { href: "/admin/dashboard", label: "Панель управления", icon: LayoutDashboard },
-  { href: "/admin/map", label: "Управление картой", icon: Map },
-  { href: "/admin/problems", label: "Таблица проблем", icon: Table2 },
-]
-
 export function AdminSidebar() {
   const pathname = usePathname()
   const { dispatch } = useApp()
+  const { t } = useLanguage()
+  const data = t?.adminSidebar
+
+  const navItems = [
+    { href: "/admin/dashboard", label: data?.dashboard || "Панель управления", icon: LayoutDashboard },
+    { href: "/admin/map", label: data?.manageMap || "Управление картой", icon: Map },
+    { href: "/admin/problems", label: data?.problemsTable || "Таблица проблем", icon: Table2 },
+  ]
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-border bg-sidebar">
@@ -39,7 +42,9 @@ export function AdminSidebar() {
       {/* Админ панель */}
       <div className="mx-3 mt-4 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2">
         <Shield className="h-4 w-4 text-sidebar-primary" />
-        <span className="text-xs font-semibold text-sidebar-foreground">Панель администратора</span>
+        <span className="text-xs font-semibold text-sidebar-foreground">
+          {data?.adminPanel || "Панель администратора"}
+        </span>
       </div>
 
       {/* Навигация */}
@@ -78,7 +83,7 @@ export function AdminSidebar() {
           }}
         >
           <LogOut className="h-4 w-4" />
-          Выйти
+          {data?.logout || "Выйти"}
         </Button>
       </div>
     </aside>

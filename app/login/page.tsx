@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +13,8 @@ import { toast } from "sonner"
 
 export default function LoginPage() {
   const { login } = useAuth()
+  const { t } = useLanguage()
+  const data = t?.loginPage
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -22,9 +25,9 @@ export default function LoginPage() {
     
     try {
       await login(username, password)
-      toast.success("Добро пожаловать!")
+      toast.success(data?.welcomeMessage || "Добро пожаловать!")
     } catch (error: any) {
-      toast.error(error.message || "Ошибка входа")
+      toast.error(error.message || (data?.errorMessage || "Ошибка входа"))
     } finally {
       setLoading(false)
     }
@@ -44,41 +47,49 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Вход в CityFix</CardTitle>
-            <CardDescription>Войдите в свой аккаунт, чтобы продолжить</CardDescription>
+            <CardTitle className="text-2xl">{data?.title || "Вход в CityFix"}</CardTitle>
+            <CardDescription>
+              {data?.description || "Войдите в свой аккаунт, чтобы продолжить"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="username">Имя пользователя</Label>
+                <Label htmlFor="username">
+                  {data?.usernameLabel || "Имя пользователя"}
+                </Label>
                 <Input
                   id="username"
-                  placeholder="alex"
+                  placeholder={data?.usernamePlaceholder || "alex"}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="password">Пароль</Label>
+                <Label htmlFor="password">
+                  {data?.passwordLabel || "Пароль"}
+                </Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={data?.passwordPlaceholder || "••••••••"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
               <Button type="submit" className="mt-2 w-full" disabled={loading}>
-                {loading ? "Вход..." : "Войти"}
+                {loading 
+                  ? (data?.loggingInButton || "Вход...") 
+                  : (data?.loginButton || "Войти")}
               </Button>
             </form>
             
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              Нет аккаунта?{" "}
+              {data?.noAccountText || "Нет аккаунта? "}
               <Link href="/register" className="font-medium text-primary hover:underline">
-                Зарегистрироваться
+                {data?.registerLink || "Зарегистрироваться"}
               </Link>
             </p>
           </CardContent>

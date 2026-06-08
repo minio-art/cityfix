@@ -119,7 +119,10 @@ class UserResponse(BaseModel):
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """
     Регистрация нового пользователя
+    
     """
+    print("REGISTER CALLED")
+    print(user_data)
     print(f"Registering user: {user_data.username}")  # Для отладки
     
     # Проверка существующего пользователя

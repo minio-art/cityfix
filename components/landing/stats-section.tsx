@@ -1,13 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-
-const stats = [
-  { label: "Сообщений о проблемах", value: 12450, suffix: "+" },
-  { label: "Решённых проблем", value: 8320, suffix: "+" },
-  { label: "Активных жителей", value: 34200, suffix: "+" },
-  { label: "Городов", value: 48, suffix: "" },
-]
+import { useLanguage } from "@/contexts/LanguageContext"
 
 function AnimatedNumber({
   value,
@@ -62,17 +56,44 @@ function AnimatedNumber({
 }
 
 export function StatsSection() {
+  const { t } = useLanguage()
+  const data = t?.stats
+
+  // Числовые значения остаются теми же, меняются только подписи
+  const stats = [
+    { 
+      value: 12450, 
+      suffix: "+",
+      label: data?.reports || "Сообщений о проблемах"
+    },
+    { 
+      value: 8320, 
+      suffix: "+",
+      label: data?.resolved || "Решённых проблем"
+    },
+    { 
+      value: 34200, 
+      suffix: "+",
+      label: data?.activeResidents || "Активных жителей"
+    },
+    { 
+      value: 48, 
+      suffix: "",
+      label: data?.cities || "Городов"
+    },
+  ]
+
   return (
     <section className="bg-card py-20 md:py-28">
       <div className="mx-auto max-w-7xl px-4">
         
         <div className="mb-16 text-center">
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-primary">
-            Наши результаты
+            {data?.badge || "Наши результаты"}
           </p>
 
           <h2 className="text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            Реальные изменения в цифрах
+            {data?.title || "Реальные изменения в цифрах"}
           </h2>
         </div>
 

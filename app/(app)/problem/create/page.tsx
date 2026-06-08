@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useApp } from "@/lib/store"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { categories } from "@/lib/mock-data"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
@@ -28,6 +29,8 @@ const LocationSearch = dynamic<LocationSearchProps>(
 export default function CreateProblemPage() {
   const router = useRouter()
   const { state } = useApp()
+  const { locale, t } = useLanguage()
+  const data = t?.createProblem
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [categoryId, setCategoryId] = useState("")
@@ -43,6 +46,11 @@ export default function CreateProblemPage() {
   // AI состояния
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [aiSuggestion, setAiSuggestion] = useState<{ category: string; confidence: number } | null>(null)
+
+  // Функция для получения названия категории на текущем языке
+  const getCategoryName = (category: typeof categories[0]) => {
+    return category.name[locale as keyof typeof category.name] || category.name.ru
+  }
 
   // Получаем район с карты
   const handleLocationSelect = (lat: number, lng: number, address: string, district: string) => {
@@ -64,16 +72,17 @@ export default function CreateProblemPage() {
       })
       
       if (response.ok) {
-        const data = await response.json()
-        if (data.category) {
+        const resData = await response.json()
+        if (resData.category) {
           setAiSuggestion({
-            category: data.category,
-            confidence: data.confidence
+            category: resData.category,
+            confidence: resData.confidence
           })
           
-          if (data.confidence > 0.7) {
-            setCategoryId(data.category)
-            toast.success(`AI определил категорию: ${categories.find(c => c.id === data.category)?.name}`)
+          if (resData.confidence > 0.7) {
+            setCategoryId(resData.category)
+            const category = categories.find(c => c.id === resData.category)
+            toast.success(`${data?.aiDetected || "AI определил категорию"}: ${category ? getCategoryName(category) : resData.category}`)
           }
         }
       }
@@ -96,17 +105,17 @@ export default function CreateProblemPage() {
     e.preventDefault()
 
     if (!location) {
-      toast.error("Пожалуйста, укажите местоположение на карте")
+      toast.error(data?.locationRequired || "Пожалуйста, укажите местоположение на карте")
       return
     }
 
     if (photos.length === 0) {
-      toast.error("Пожалуйста, загрузите хотя бы одно фото")
+      toast.error(data?.photoRequired || "Пожалуйста, загрузите хотя бы одно фото")
       return
     }
 
     if (!categoryId) {
-      toast.error("Пожалуйста, выберите категорию")
+      toast.error(data?.categoryRequired || "Пожалуйста, выберите категорию")
       return
     }
 
@@ -130,14 +139,14 @@ export default function CreateProblemPage() {
       const result = await createProblem(formData)
       
       if (result.success) {
-        toast.success("Проблема успешно отправлена!")
+        toast.success(data?.successMessage || "Проблема успешно отправлена!")
         router.push("/map")
       } else {
-        toast.error("Ошибка при отправке")
+        toast.error(data?.errorMessage || "Ошибка при отправке")
       }
     } catch (error) {
       console.error("Ошибка:", error)
-      toast.error("Произошла ошибка")
+      toast.error(data?.errorMessage || "Произошла ошибка")
     } finally {
       setIsSubmitting(false)
     }
@@ -146,9 +155,9 @@ export default function CreateProblemPage() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Сообщить о проблеме</h1>
+        <h1 className="text-2xl font-bold text-foreground">{data?.title || "Сообщить о проблеме"}</h1>
         <p className="mt-1 text-muted-foreground">
-          Помогите улучшить ваш город, сообщая о замеченных проблемах
+          {data?.subtitle || "Помогите улучшить ваш город, сообщая о замеченных проблемах"}
         </p>
       </div>
 
@@ -156,15 +165,15 @@ export default function CreateProblemPage() {
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Детали проблемы</CardTitle>
-              <CardDescription>Опишите проблему, которую хотите сообщить</CardDescription>
+              <CardTitle className="text-base">{data?.problemDetails || "Детали проблемы"}</CardTitle>
+              <CardDescription>{data?.problemDescription || "Опишите проблему, которую хотите сообщить"}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="title">Название</Label>
+                <Label htmlFor="title">{data?.titleLabel || "Название"}</Label>
                 <Input
                   id="title"
-                  placeholder="Например: Большая яма на улице Абая"
+                  placeholder={data?.titlePlaceholder || "Например: Большая яма на улице Абая"}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
@@ -172,31 +181,34 @@ export default function CreateProblemPage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="category">Категория</Label>
+                <Label htmlFor="category">{data?.categoryLabel || "Категория"}</Label>
                 <Select onValueChange={setCategoryId} value={categoryId} required>
                   <SelectTrigger>
-                    <SelectValue placeholder="Выберите категорию" />
+                    <SelectValue placeholder={data?.categoryPlaceholder || "Выберите категорию"} />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        {c.name}
+                        <span className="flex items-center gap-2">
+                          <span>{c.icon}</span>
+                          <span>{getCategoryName(c)}</span>
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 
                 {isAnalyzing && (
-                  <p className="text-xs text-blue-600">AI анализирует фото...</p>
+                  <p className="text-xs text-blue-600">{data?.analyzing || "AI анализирует фото..."}</p>
                 )}
                 
                 {aiSuggestion && !categoryId && (
                   <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm font-medium text-blue-800">AI рекомендация:</p>
+                    <p className="text-sm font-medium text-blue-800">{data?.aiRecommendation || "AI рекомендация:"}</p>
                     <p className="text-sm text-blue-600">
-                      Категория: {categories.find(c => c.id === aiSuggestion.category)?.name || aiSuggestion.category}
+                      {data?.category || "Категория"}: {getCategoryName(categories.find(c => c.id === aiSuggestion.category) || categories[0])}
                       <br />
-                      Уверенность: {Math.round(aiSuggestion.confidence * 100)}%
+                      {data?.confidence || "Уверенность"}: {Math.round(aiSuggestion.confidence * 100)}%
                     </p>
                     <Button
                       type="button"
@@ -207,17 +219,17 @@ export default function CreateProblemPage() {
                         setAiSuggestion(null)
                       }}
                     >
-                      Использовать эту категорию
+                      {data?.useCategory || "Использовать эту категорию"}
                     </Button>
                   </div>
                 )}
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="description">Описание</Label>
+                <Label htmlFor="description">{data?.descriptionLabel || "Описание"}</Label>
                 <Textarea
                   id="description"
-                  placeholder="Предоставьте детали проблемы..."
+                  placeholder={data?.descriptionPlaceholder || "Предоставьте детали проблемы..."}
                   rows={4}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -226,7 +238,7 @@ export default function CreateProblemPage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label>Фотографии (обязательно)</Label>
+                <Label>{data?.photosLabel || "Фотографии (обязательно)"}</Label>
                 <FileUpload
                   onChange={handlePhotosChange}
                   maxFiles={5}
@@ -240,9 +252,9 @@ export default function CreateProblemPage() {
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Местоположение</CardTitle>
+              <CardTitle className="text-base">{data?.locationLabel || "Местоположение"}</CardTitle>
               <CardDescription>
-                Найдите адрес на карте или кликните для установки метки
+                {data?.locationDescription || "Найдите адрес на карте или кликните для установки метки"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -252,15 +264,15 @@ export default function CreateProblemPage() {
               {location && (
                 <div className="mt-2 text-xs text-muted-foreground">
                   <p>📍 {location.address}</p>
-                  <p>🏙️ Район: {location.district}</p>
-                  <p>Координаты: {location.lat.toFixed(5)}, {location.lng.toFixed(5)}</p>
+                  <p>{data?.districtLabel || "🏙️ Район"}: {location.district}</p>
+                  <p>{data?.coordinatesLabel || "Координаты"}: {location.lat.toFixed(5)}, {location.lng.toFixed(5)}</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
           <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Отправка..." : "Отправить"}
+            {isSubmitting ? (data?.submitting || "Отправка...") : (data?.submitButton || "Отправить")}
           </Button>
         </div>
       </form>

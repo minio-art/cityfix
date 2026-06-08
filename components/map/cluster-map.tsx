@@ -8,6 +8,7 @@ import { categories } from "@/lib/mock-data"
 import { getAuthToken } from "@/lib/api"
 import { toast } from "react-hot-toast"
 import { useAuth } from "@/hooks/useAuth"
+import { useLanguage } from "@/contexts/LanguageContext"
 
 interface Cluster {
   id: string
@@ -48,6 +49,15 @@ export function ClusterMap({
   const [voting, setVoting] = useState<string | null>(null)
   const [votedClusters, setVotedClusters] = useState<Set<string>>(new Set())
   const { user } = useAuth()
+  const { locale, t } = useLanguage()
+  const data = t?.clusterMap
+
+  // Функция для получения названия категории на текущем языке
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId)
+    if (!category) return categoryId
+    return category.name[locale as keyof typeof category.name] || category.name.ru
+  }
 
   // Инициализация карты
   useEffect(() => {
@@ -79,7 +89,7 @@ export function ClusterMap({
   const handleVote = async (clusterId: string, cluster: Cluster) => {
     const token = getAuthToken()
     if (!token) {
-      toast.error("Пожалуйста, войдите в систему, чтобы проголосовать")
+      toast.error(data?.loginToVote || "Пожалуйста, войдите в систему, чтобы проголосовать")
       return
     }
 
@@ -101,14 +111,14 @@ export function ClusterMap({
       )
 
       if (!response.ok) {
-        let errorMessage = "Не удалось проголосовать"
+        let errorMessage = data?.voteFailed || "Не удалось проголосовать"
         try {
-          const data = await response.json()
-          errorMessage = data.detail || errorMessage
+          const responseData = await response.json()
+          errorMessage = responseData.detail || errorMessage
         } catch {}
 
         if (response.status === 400 && errorMessage.includes("уже голосовали")) {
-          toast.error("❌ Вы уже голосовали за эту проблему")
+          toast.error(data?.alreadyVoted || "❌ Вы уже голосовали за эту проблему")
           setVotedClusters(prev => new Set(prev).add(clusterId))
         } else {
           toast.error(errorMessage)
@@ -117,7 +127,7 @@ export function ClusterMap({
       }
 
       const result = await response.json()
-      toast.success("✅ Ваш голос учтён!")
+      toast.success(data?.voteSuccess || "✅ Ваш голос учтён!")
 
       setVotedClusters(prev => new Set(prev).add(clusterId))
       cluster.votesCount = result.votesCount
@@ -146,7 +156,7 @@ export function ClusterMap({
 
       const color = getPriorityColor(cluster.priority as "critical" | "medium" | "low")
       const size = getMarkerSize(cluster.complaintsCount)
-      const cat = categories.find(c => c.id === cluster.categoryId)
+      const catName = getCategoryName(cluster.categoryId)
       const votes = cluster.votesCount || 0
       const hasVoted = votedClusters.has(cluster.id)
       const isAdmin = user?.role === "admin"
@@ -215,14 +225,14 @@ export function ClusterMap({
             ${cluster.title}
           </strong>
           <span style="font-size: 11px; color: #666; display: block; margin-bottom: 8px;">
-            ${cat?.name || cluster.categoryId} &middot; ${cluster.district}
+            ${catName} &middot; ${cluster.district}
           </span>
           <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
             <span style="font-size: 12px; color: ${color}; font-weight: 600;">
-              📊 ${cluster.complaintsCount} жалоб
+              📊 ${cluster.complaintsCount} ${data?.complaints || "жалоб"}
             </span>
             <span style="font-size: 12px; color: #2196f3; font-weight: 600;">
-              👍 ${votes} голосов
+              👍 ${votes} ${data?.votes || "голосов"}
             </span>
           </div>
           <div style="margin-top: 12px; display: flex; gap: 8px;">
@@ -241,7 +251,7 @@ export function ClusterMap({
               "
               ${hasVoted ? 'disabled' : ''}
             >
-              ${hasVoted ? '✓ Проголосовано' : (voting === cluster.id ? '⏳ Голосование...' : '👍 Голосовать')}
+              ${hasVoted ? (data?.voted || '✓ Проголосовано') : (voting === cluster.id ? (data?.voting || '⏳ Голосование...') : (data?.vote || '👍 Голосовать'))}
             </button>
             <a 
               href="${getProblemUrl(cluster.id)}"
@@ -261,7 +271,7 @@ export function ClusterMap({
               onmouseover="this.style.background='${isAdmin ? '#e68900' : '#45a049'}'"
               onmouseout="this.style.background='${isAdmin ? '#ff9800' : '#4caf50'}'"
             >
-              ${isAdmin ? '✏️ Редактировать' : '📋 Подробнее'}
+              ${isAdmin ? (data?.edit || '✏️ Редактировать') : (data?.details || '📋 Подробнее')}
             </a>
           </div>
         </div>
@@ -289,7 +299,7 @@ export function ClusterMap({
 
       markersRef.current.push(marker)
     })
-  }, [clusters, isReady, onClusterClick, voting, votedClusters, user])
+  }, [clusters, isReady, onClusterClick, voting, votedClusters, user, locale])
 
   return (
     <div

@@ -1,3 +1,4 @@
+// app/layout.tsx
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/react"
@@ -12,8 +13,7 @@ export const metadata: Metadata = {
     default: "CityFix — Сообщай о проблемах города",
     template: "%s | CityFix",
   },
-  description:
-    "CityFix помогает жителям сообщать о городских проблемах, голосовать за важные вопросы и отслеживать их решение. Сделаем город лучше вместе.",
+  description: "CityFix помогает жителям сообщать о городских проблемах, голосовать за важные вопросы и отслеживать их решение. Сделаем город лучше вместе.",
   generator: "v0.app",
   icons: {
     icon: [

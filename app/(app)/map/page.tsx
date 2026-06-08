@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useApp } from "@/lib/store"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { MapContainer } from "@/components/map/map-container"
 import { MapFilters } from "@/components/map/map-filters"
 import { getClusters } from "@/lib/api"
@@ -41,6 +42,7 @@ interface MapCluster {
 
 export default function MapPage() {
   const { state, dispatch } = useApp()
+  const { t } = useLanguage()
   const [allClusters, setAllClusters] = useState<MapCluster[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -164,7 +166,11 @@ export default function MapPage() {
   }, [allClusters, state.filters])
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center">Загрузка карты...</div>
+    return (
+      <div className="flex h-full items-center justify-center">
+        {t?.mapPage?.loading || "Загрузка карты..."}
+      </div>
+    )
   }
 
   return (
@@ -185,7 +191,7 @@ export default function MapPage() {
             <SheetTrigger asChild>
               <Button size="sm" variant="secondary" className="gap-2 shadow-lg">
                 <SlidersHorizontal className="h-4 w-4" />
-                Filters
+                {t?.mapPage?.filtersButton || "Filters"}
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-80 p-0">

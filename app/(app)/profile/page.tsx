@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useApp } from "@/lib/store"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { categories } from "@/lib/mock-data"
 import { getPriorityColor, getPriorityLabel, getStatusLabel, getStatusColor } from "@/lib/geo"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,6 +37,8 @@ interface Report {
 }
 
 export default function ProfilePage() {
+  const { locale, t } = useLanguage()
+  const data = t?.profilePage
   const [user, setUser] = useState<UserProfile | null>(null)
   const [myReports, setMyReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
@@ -67,6 +70,13 @@ export default function ProfilePage() {
     }
   }
 
+  // Функция для получения названия категории на текущем языке
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId)
+    if (!category) return categoryId
+    return category.name[locale as keyof typeof category.name] || category.name.ru
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -80,9 +90,9 @@ export default function ProfilePage() {
       <div className="mx-auto max-w-4xl p-6 text-center">
         <Card>
           <CardContent className="py-12">
-            <p className="text-muted-foreground">Пожалуйста, войдите чтобы просмотреть профиль</p>
+            <p className="text-muted-foreground">{data?.pleaseLogin || "Пожалуйста, войдите чтобы просмотреть профиль"}</p>
             <Link href="/login" className="mt-4 inline-block text-primary hover:underline">
-              Войти
+              {data?.loginLink || "Войти"}
             </Link>
           </CardContent>
         </Card>
@@ -106,15 +116,15 @@ export default function ProfilePage() {
             <div className="mt-2 flex flex-wrap justify-center gap-4 text-sm text-muted-foreground sm:justify-start">
               <span className="flex items-center gap-1">
                 <CalendarDays className="h-3.5 w-3.5" />
-                Присоединился {user.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : "Недавно"}
+                {data?.joinedLabel || "Присоединился"} {user.created_at ? new Date(user.created_at).toLocaleDateString(locale === 'kz' ? 'kk-KZ' : 'ru-RU') : (data?.recently || "Недавно")}
               </span>
               <span className="flex items-center gap-1">
                 <FileText className="h-3.5 w-3.5" />
-                {myReports.length} сообщений
+                {data?.reportsCount || "сообщений"}: {myReports.length}
               </span>
               <span className="flex items-center gap-1">
                 <ThumbsUp className="h-3.5 w-3.5" />
-                Проголосовано: {votedReports.length}
+                {data?.votedCount || "Проголосовано"}: {votedReports.length}
               </span>
             </div>
           </div>
@@ -125,11 +135,11 @@ export default function ProfilePage() {
         <TabsList className="w-full justify-start">
           <TabsTrigger value="reports" className="gap-1">
             <FileText className="h-3.5 w-3.5" />
-            Мои сообщения ({myReports.length})
+            {data?.myReportsTab || "Мои сообщения"} ({myReports.length})
           </TabsTrigger>
           <TabsTrigger value="voted" className="gap-1">
             <ThumbsUp className="h-3.5 w-3.5" />
-            Отмеченные ({votedReports.length})
+            {data?.votedTab || "Отмеченные"} ({votedReports.length})
           </TabsTrigger>
         </TabsList>
 
@@ -138,15 +148,15 @@ export default function ProfilePage() {
             {myReports.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  Вы еще не сообщили ни о каких проблемах.
+                  {data?.noReports || "Вы еще не сообщили ни о каких проблемах."}
                   <Link href="/problem/create" className="ml-2 text-primary hover:underline">
-                    Создать первое сообщение
+                    {data?.createFirst || "Создать первое сообщение"}
                   </Link>
                 </CardContent>
               </Card>
             ) : (
               myReports.map((report) => (
-                <ProblemRow key={report.id} problem={report} />
+                <ProblemRow key={report.id} problem={report} getCategoryName={getCategoryName} />
               ))
             )}
           </div>
@@ -157,12 +167,12 @@ export default function ProfilePage() {
             {votedReports.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  Вы еще не голосовали ни за одну проблему.
+                  {data?.noVotes || "Вы еще не голосовали ни за одну проблему."}
                 </CardContent>
               </Card>
             ) : (
               votedReports.map((report) => (
-                <ProblemRow key={report.id} problem={report} />
+                <ProblemRow key={report.id} problem={report} getCategoryName={getCategoryName} />
               ))
             )}
           </div>
@@ -172,9 +182,7 @@ export default function ProfilePage() {
   )
 }
 
-function ProblemRow({ problem }: { problem: Report }) {
-  const cat = categories.find((c) => c.id === problem.category) || categories[0]
-  
+function ProblemRow({ problem, getCategoryName }: { problem: Report; getCategoryName: (id: string) => string }) {
   return (
     <Link href={`/problem/${problem.id}`}>
       <Card className="transition-shadow hover:shadow-md cursor-pointer">
@@ -192,7 +200,7 @@ function ProblemRow({ problem }: { problem: Report }) {
               >
                 {getPriorityLabel(problem.priority as "critical" | "medium" | "low")}
               </Badge>
-              <span className="text-xs text-muted-foreground">{cat?.name || problem.category}</span>
+              <span className="text-xs text-muted-foreground">{getCategoryName(problem.category)}</span>
               <span className="text-xs text-muted-foreground">{problem.district}</span>
             </div>
           </div>
@@ -204,9 +212,6 @@ function ProblemRow({ problem }: { problem: Report }) {
             <span className="flex items-center gap-1">
               <ThumbsUp className="h-3 w-3" />
               {problem.votesCount || 0}
-            </span>
-            <span className="text-xs">
-              {new Date(problem.created_at).toLocaleDateString('ru-RU')}
             </span>
           </div>
         </CardContent>

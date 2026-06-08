@@ -1,8 +1,14 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
+import { useLanguage } from "@/contexts/LanguageContext"
 
 export function CtaSection() {
+  const { t } = useLanguage()
+  const data = t?.cta
+
   return (
     <section className="bg-background py-20 md:py-28">
       <div className="mx-auto max-w-7xl px-4">
@@ -11,11 +17,11 @@ export function CtaSection() {
           
           <div className="relative">
             <h2 className="mx-auto max-w-2xl text-balance text-3xl font-bold text-primary-foreground md:text-4xl">
-              Готовы сделать свой город лучше?
+              {data?.title || "Готовы сделать свой город лучше?"}
             </h2>
 
             <p className="mx-auto mt-4 max-w-xl text-pretty text-primary-foreground/80">
-              Присоединяйтесь к тысячам активных жителей, которые уже меняют город. Сообщите о проблеме всего за минуту.
+              {data?.description || "Присоединяйтесь к тысячам активных жителей, которые уже меняют город. Сообщите о проблеме всего за минуту."}
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -26,7 +32,7 @@ export function CtaSection() {
                 className="gap-2 px-8"
               >
                 <Link href="/register">
-                  Создать аккаунт
+                  {data?.registerButton || "Создать аккаунт"}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -37,7 +43,9 @@ export function CtaSection() {
                 variant="ghost"
                 className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
               >
-                <Link href="/login">Войти</Link>
+                <Link href="/login">
+                  {data?.loginButton || "Войти"}
+                </Link>
               </Button>
             </div>
           </div>

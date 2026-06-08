@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useApp, getUserById } from "@/lib/store"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,6 +11,8 @@ import { Send } from "lucide-react"
 
 export function CommentSection({ problemId }: { problemId: string }) {
   const { state, dispatch } = useApp()
+  const { locale, t } = useLanguage()
+  const data = t?.commentSection
   const [text, setText] = useState("")
   const comments = state.comments.filter((c) => c.problemId === problemId)
 
@@ -34,7 +37,7 @@ export function CommentSection({ problemId }: { problemId: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          Комментарии ({comments.length})
+          {data?.title || "Комментарии"} ({comments.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -50,10 +53,10 @@ export function CommentSection({ problemId }: { problemId: string }) {
               <div className="flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-medium text-foreground">
-                    {author?.name || "Неизвестно"}
+                    {author?.name || data?.unknown || "Неизвестно"}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(comment.createdAt).toLocaleDateString("ru-RU")}
+                    {new Date(comment.createdAt).toLocaleDateString(locale === 'kz' ? 'kk-KZ' : 'ru-RU')}
                   </span>
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -66,7 +69,7 @@ export function CommentSection({ problemId }: { problemId: string }) {
 
         <form onSubmit={handleSubmit} className="mt-2 flex gap-2">
           <Textarea
-            placeholder="Добавить комментарий..."
+            placeholder={data?.placeholder || "Добавить комментарий..."}
             rows={2}
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -74,7 +77,7 @@ export function CommentSection({ problemId }: { problemId: string }) {
           />
           <Button type="submit" size="icon" className="shrink-0 self-end">
             <Send className="h-4 w-4" />
-            <span className="sr-only">Отправить комментарий</span>
+            <span className="sr-only">{data?.sendButton || "Отправить комментарий"}</span>
           </Button>
         </form>
       </CardContent>

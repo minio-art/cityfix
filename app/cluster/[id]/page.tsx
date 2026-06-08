@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { getIssues, getClusters, updateIssueStatus } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,18 +12,28 @@ import { toast } from "sonner"
 import { MapPin, Calendar, AlertCircle, CheckCircle2, Clock, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  new: { label: "Новая", color: "bg-blue-100 text-blue-700", icon: AlertCircle },
-  confirmed: { label: "Подтверждена", color: "bg-yellow-100 text-yellow-700", icon: Clock },
-  in_progress: { label: "В работе", color: "bg-orange-100 text-orange-700", icon: Clock },
-  resolved: { label: "Решена", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
-  rejected: { label: "Отклонена", color: "bg-red-100 text-red-700", icon: AlertCircle }
+const statusConfig: Record<string, { label: Record<string, string>; color: string; icon: any }> = {
+  new: { label: { ru: "Новая", kz: "Жаңа" }, color: "bg-blue-100 text-blue-700", icon: AlertCircle },
+  confirmed: { label: { ru: "Подтверждена", kz: "Расталған" }, color: "bg-yellow-100 text-yellow-700", icon: Clock },
+  in_progress: { label: { ru: "В работе", kz: "Жұмыс барысында" }, color: "bg-orange-100 text-orange-700", icon: Clock },
+  resolved: { label: { ru: "Решена", kz: "Шешілді" }, color: "bg-green-100 text-green-700", icon: CheckCircle2 },
+  rejected: { label: { ru: "Отклонена", kz: "Қабылданбады" }, color: "bg-red-100 text-red-700", icon: AlertCircle }
 }
+
+const statusOptions = [
+  { value: "new", label: { ru: "Новая", kz: "Жаңа" } },
+  { value: "confirmed", label: { ru: "Подтверждена", kz: "Расталған" } },
+  { value: "in_progress", label: { ru: "В работе", kz: "Жұмыс барысында" } },
+  { value: "resolved", label: { ru: "Решена", kz: "Шешілді" } },
+  { value: "rejected", label: { ru: "Отклонена", kz: "Қабылданбады" } }
+]
 
 export default function ClusterDetailPage() {
   const { id } = useParams()
   const router = useRouter()
   const { user } = useAuth()
+  const { locale, t } = useLanguage()
+  const data = t?.clusterDetailPage
   const [cluster, setCluster] = useState<any>(null)
   const [issues, setIssues] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,7 +57,7 @@ export default function ClusterDetailPage() {
       setIssues(clusterIssues)
     } catch (error) {
       console.error("Ошибка загрузки:", error)
-      toast.error("Не удалось загрузить данные")
+      toast.error(data?.loadError || "Не удалось загрузить данные")
     } finally {
       setLoading(false)
     }
@@ -58,21 +69,21 @@ export default function ClusterDetailPage() {
     setSubmitting(true)
     try {
       await updateIssueStatus(issueId.toString(), newStatus)
-      toast.success("Статус обновлён")
+      toast.success(data?.statusUpdated || "Статус обновлён")
       await fetchData()
     } catch (error) {
-      toast.error("Ошибка")
+      toast.error(data?.statusError || "Ошибка")
     } finally {
       setSubmitting(false)
     }
   }
 
   if (loading) {
-    return <div className="flex justify-center p-12">Загрузка...</div>
+    return <div className="flex justify-center p-12">{data?.loading || "Загрузка..."}</div>
   }
 
   if (!cluster) {
-    return <div className="text-center p-12">Кластер не найден</div>
+    return <div className="text-center p-12">{data?.clusterNotFound || "Кластер не найден"}</div>
   }
 
   const resolvedCount = issues.filter(i => i.status === "resolved").length
@@ -82,7 +93,7 @@ export default function ClusterDetailPage() {
     <div className="container mx-auto max-w-4xl p-6">
       <Link href="/map" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4">
         <ChevronLeft className="w-4 h-4 mr-1" />
-        Назад к карте
+        {data?.backToMap || "Назад к карте"}
       </Link>
 
       {/* Информация о кластере */}
@@ -91,7 +102,7 @@ export default function ClusterDetailPage() {
           <CardTitle className="text-2xl">{cluster.title}</CardTitle>
           <div className="flex flex-wrap gap-2 mt-2">
             <Badge className={statusConfig[cluster.status]?.color}>
-              {statusConfig[cluster.status]?.label}
+              {statusConfig[cluster.status]?.label[locale]}
             </Badge>
             <Badge variant="outline">{cluster.type}</Badge>
             <Badge variant="outline">{cluster.district}</Badge>
@@ -101,22 +112,22 @@ export default function ClusterDetailPage() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              <span>Координаты: {cluster.position?.[0]?.toFixed(5)}, {cluster.position?.[1]?.toFixed(5)}</span>
+              <span>{data?.coordinates || "Координаты"}: {cluster.position?.[0]?.toFixed(5)}, {cluster.position?.[1]?.toFixed(5)}</span>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              <span>Создан: {new Date(cluster.created_at).toLocaleDateString()}</span>
+              <span>{data?.created || "Создан"}: {new Date(cluster.created_at).toLocaleDateString(locale === 'kz' ? 'kk-KZ' : 'ru-RU')}</span>
             </div>
           </div>
           <div className="mt-4 p-3 bg-muted rounded-lg">
             <p className="text-sm">
-              <strong>Всего жалоб в кластере:</strong> {cluster.count || issues.length}
+              <strong>{data?.totalComplaints || "Всего жалоб в кластере"}:</strong> {cluster.count || issues.length}
             </p>
             <p className="text-sm">
-              <strong>Решено:</strong> {resolvedCount} из {issues.length}
+              <strong>{data?.resolvedCount || "Решено"}:</strong> {resolvedCount} {data?.of || "из"} {issues.length}
             </p>
             {allResolved && (
-              <p className="text-sm text-green-600 mt-1">✅ Все проблемы в этом кластере решены!</p>
+              <p className="text-sm text-green-600 mt-1">✅ {data?.allResolved || "Все проблемы в этом кластере решены!"}</p>
             )}
           </div>
         </CardContent>
@@ -125,12 +136,12 @@ export default function ClusterDetailPage() {
       {/* Список проблем в кластере */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">Проблемы в этом кластере ({issues.length})</CardTitle>
+          <CardTitle className="text-xl">{data?.problemsInCluster || "Проблемы в этом кластере"} ({issues.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {issues.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
-              Нет проблем в этом кластере
+              {data?.noProblems || "Нет проблем в этом кластере"}
             </div>
           ) : (
             <div className="space-y-4">
@@ -141,14 +152,14 @@ export default function ClusterDetailPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="font-semibold">{issue.title}</h3>
                         <Badge className={statusConfig[issue.status]?.color}>
-                          {statusConfig[issue.status]?.label}
+                          {statusConfig[issue.status]?.label[locale]}
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">{issue.description || "Нет описания"}</p>
+                      <p className="text-sm text-muted-foreground mb-2">{issue.description || (data?.noDescription || "Нет описания")}</p>
                       <div className="flex gap-4 text-xs text-muted-foreground">
                         <span>📍 {issue.address || issue.district}</span>
-                        <span>📅 {new Date(issue.created_at).toLocaleDateString()}</span>
-                        <span>👍 {issue.votesCount || 0} голосов</span>
+                        <span>📅 {new Date(issue.created_at).toLocaleDateString(locale === 'kz' ? 'kk-KZ' : 'ru-RU')}</span>
+                        <span>👍 {issue.votesCount || 0} {data?.votes || "голосов"}</span>
                       </div>
                     </div>
                     <div className="flex gap-2 ml-4">
@@ -156,13 +167,14 @@ export default function ClusterDetailPage() {
                         size="sm"
                         variant="outline"
                         onClick={() =>
-                       router.push(
-                           isAdmin
-                            ? `/admin/problem/${issue.id}`
-                             : `/problem/${issue.id}`
-  )
-}                      >
-                        Подробнее
+                          router.push(
+                            isAdmin
+                              ? `/admin/problem/${issue.id}`
+                              : `/problem/${issue.id}`
+                          )
+                        }
+                      >
+                        {data?.detailsButton || "Подробнее"}
                       </Button>
                       {isAdmin && (
                         <select
@@ -171,11 +183,11 @@ export default function ClusterDetailPage() {
                           className="text-sm border rounded px-2 py-1"
                           disabled={submitting}
                         >
-                          <option value="new">Новая</option>
-                          <option value="confirmed">Подтверждена</option>
-                          <option value="in_progress">В работе</option>
-                          <option value="resolved">Решена</option>
-                          <option value="rejected">Отклонена</option>
+                          {statusOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label[locale]}
+                            </option>
+                          ))}
                         </select>
                       )}
                     </div>

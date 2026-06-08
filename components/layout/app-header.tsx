@@ -1,77 +1,90 @@
+// components/AppHeader.tsx (альтернативная версия с текстом)
 "use client"
 
+import Link from "next/link"
 import { useApp } from "@/lib/store"
 import { useTheme } from "next-themes"
-import { Bell, Moon, Sun } from "lucide-react"
+import { Bell, Moon, Sun, Languages, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
+import { useLanguage } from "@/contexts/LanguageContext"
 
 export function AppHeader() {
   const { state, dispatch } = useApp()
   const { setTheme, resolvedTheme } = useTheme()
+  const { locale, setLocale, t } = useLanguage()
   const unreadCount = state.notifications.filter((n) => !n.read).length
 
+  const toggleLanguage = () => {
+    setLocale(locale === "ru" ? "kz" : "ru")
+  }
+
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-background px-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">
-          {state.currentUser
-            ? `Добро пожаловать, ${state.currentUser.name}`
-            : "CityFix"}
-        </h2>
-         
-      </div>
+    <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+        
+        {/* Логотип */}
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+            <MapPin className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <span className="text-xl font-bold text-foreground">CityFix</span>
+        </Link>
 
-      <div className="flex items-center gap-2">
-        {/* Переключатель темы */}
-        <button
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className="relative rounded-md p-2 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute top-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Сменить тему</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Приветствие */}
+          <div className="hidden md:block">
+            <h2 className="text-sm font-medium text-foreground">
+              {state.currentUser
+                ? `${t?.header?.welcome || 'Добро пожаловать'}, ${state.currentUser.name}`
+                : t?.header?.title || "CityFix"}
+            </h2>
+          </div>
 
-        {/* Уведомления */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-4 w-4" />
-              {unreadCount > 0 && (
-                <Badge className="absolute -right-1 -top-1 h-5 w-5 items-center justify-center rounded-full bg-destructive p-0 text-[10px] text-primary-foreground">
-                  {unreadCount}
-                </Badge>
-              )}
-              <span className="sr-only">Уведомления</span>
-            </Button>
-          </DropdownMenuTrigger>
+          {/* Кнопка переключения языка с текстом */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleLanguage}
+            className="gap-2"
+          >
+            <Languages className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">
+              {locale === "ru" ? "Рус" : "Қаз"}
+            </span>
+          </Button>
 
-          <DropdownMenuContent align="end" className="w-80">
-            {state.notifications.length === 0 ? (
-              <DropdownMenuItem disabled>Нет уведомлений</DropdownMenuItem>
-            ) : (
-              state.notifications.slice(0, 5).map((notif) => (
-                <DropdownMenuItem
-                  key={notif.id}
-                  onClick={() =>
-                    dispatch({ type: "MARK_NOTIFICATION_READ", payload: notif.id })
-                  }
-                  className="flex flex-col items-start gap-1"
-                >
-                  <span className="text-sm font-medium">{notif.title}</span>
-                  <span className="text-xs text-muted-foreground">{notif.message}</span>
-                </DropdownMenuItem>
-              ))
+          {/* Переключатель темы */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          >
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">{t?.header?.themeToggle || 'Сменить тему'}</span>
+          </Button>
+
+          {/* Уведомления */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative"
+            onClick={() => {
+              // Здесь можно открыть попап с уведомлениями
+              console.log("Open notifications")
+            }}
+          >
+            <Bell className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <Badge className="absolute -right-1 -top-1 h-5 w-5 items-center justify-center rounded-full bg-destructive p-0 text-[10px] text-primary-foreground">
+                {unreadCount}
+              </Badge>
             )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <span className="sr-only">{t?.header?.notifications || 'Уведомления'}</span>
+          </Button>
+        </div>
+
       </div>
     </header>
   )

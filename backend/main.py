@@ -1,12 +1,22 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
 import os
+from middleware.language_middleware import LanguageMiddleware
 from datetime import datetime
 from api import issues, ai, auth, feedback
 from database import SessionLocal 
 from models import Cluster, Issue
+from apscheduler.schedulers.background import BackgroundScheduler
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+import os
+from datetime import datetime
+from api import issues, ai, auth, feedback
 
 # Создаем папку для uploads
 os.makedirs("uploads", exist_ok=True)
@@ -17,33 +27,32 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Настройка CORS
+# Настройка CORS - ДОЛЖНА БЫТЬ ПЕРВОЙ!
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://cityfix-mv20.onrender.com",  # ваш фронтенд
-        "http://localhost:3000",
-        "http://localhost:8001",
-    ],
+    allow_origins=["*"],  # Временно разрешаем все для теста
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
-# Обработчик OPTIONS для CORS preflight
+# Явный обработчик для OPTIONS запросов
 @app.options("/{path:path}")
 async def options_handler(request: Request):
-    return JSONResponse(
+    """Handle OPTIONS requests for CORS preflight"""
+    response = JSONResponse(
         content={"message": "OK"},
         status_code=200,
         headers={
-            "Access-Control-Allow-Origin": "https://cityfix-mv20.onrender.com",
+            "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "3600",
         }
     )
+    return response
 
 # Подключаем статику
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -53,6 +62,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(issues.router, prefix="/api", tags=["issues"])
 app.include_router(ai.router, prefix="/api", tags=["ai"])
 app.include_router(feedback.router, prefix="/api", tags=["feedback"])
+
 
 @app.get("/")
 def root():
@@ -90,50 +100,15 @@ def get_clusters():
         }
     ]
 
-# Функция для расчета приоритета (добавьте её!)
-def calculate_priority(issues_count, category, days_old, total_votes):
-    """Расчет приоритета кластера"""
-    # Базовая логика - вы можете настроить под свои нужды
-    priority_score = 0
-    
-    # Чем больше проблем, тем выше приоритет
-    if issues_count > 20:
-        priority_score += 3
-    elif issues_count > 10:
-        priority_score += 2
-    elif issues_count > 5:
-        priority_score += 1
-    
-    # Чем старше проблема, тем выше приоритет
-    if days_old > 30:
-        priority_score += 3
-    elif days_old > 14:
-        priority_score += 2
-    elif days_old > 7:
-        priority_score += 1
-    
-    # По голосам
-    if total_votes > 50:
-        priority_score += 3
-    elif total_votes > 20:
-        priority_score += 2
-    elif total_votes > 10:
-        priority_score += 1
-    
-    # Приоритет по категориям
-    high_priority_categories = ['roads', 'light', 'water']
-    if category in high_priority_categories:
-        priority_score += 2
-    
-    # Преобразуем в текст
-    if priority_score >= 5:
-        return "critical"
-    elif priority_score >= 3:
-        return "high"
-    elif priority_score >= 1:
-        return "medium"
-    else:
-        return "low"
+
+app.add_middleware(LanguageMiddleware)
+
+# В эндпоинтах используем язык
+@app.get("/api/hello")
+async def hello(request: Request):
+    lang = request.state.language
+    translator = get_translation(lang)
+    return {"message": translator("Hello and Welcome!")}
 
 def update_all_priorities():
     """Обновляет приоритеты всех кластеров"""
@@ -165,10 +140,3 @@ def update_all_priorities():
         db.rollback()
     finally:
         db.close()
-
-# Опционально: запускаем обновление приоритетов при старте
-@app.on_event("startup")
-def startup_event():
-    print("🚀 CityFix API starting...")
-    # Можно раскомментировать, если нужно обновить приоритеты при старте
-    # update_all_priorities()

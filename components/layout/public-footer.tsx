@@ -1,7 +1,13 @@
+"use client"
+
 import Link from "next/link"
 import { MapPin } from "lucide-react"
+import { useLanguage } from "@/contexts/LanguageContext"
 
 export function PublicFooter() {
+  const { t } = useLanguage()
+  const data = t?.footer
+
   return (
     <footer className="border-t border-border bg-card">
       <div className="mx-auto max-w-7xl px-4 py-12">
@@ -19,13 +25,13 @@ export function PublicFooter() {
             </Link>
 
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              CityFix помогает жителям сообщать о проблемах, расставлять приоритеты и отслеживать их решение. Вместе мы делаем наши города лучше.
+              {data?.description || "CityFix помогает жителям сообщать о проблемах, расставлять приоритеты и отслеживать их решение. Вместе мы делаем наши города лучше."}
             </p>
           </div>
 
           <div>
             <h4 className="mb-3 text-sm font-semibold text-foreground">
-              Платформа
+              {data?.platformTitle || "Платформа"}
             </h4>
             <ul className="flex flex-col gap-2">
               <li>
@@ -33,7 +39,7 @@ export function PublicFooter() {
                   href="/#how-it-works"
                   className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  Как это работает
+                  {data?.howItWorks || "Как это работает"}
                 </Link>
               </li>
               <li>
@@ -41,7 +47,7 @@ export function PublicFooter() {
                   href="/#advantages"
                   className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  Преимущества
+                  {data?.advantages || "Преимущества"}
                 </Link>
               </li>
               <li>
@@ -49,7 +55,7 @@ export function PublicFooter() {
                   href="/register"
                   className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  Регистрация
+                  {data?.register || "Регистрация"}
                 </Link>
               </li>
             </ul>
@@ -57,22 +63,22 @@ export function PublicFooter() {
 
           <div>
             <h4 className="mb-3 text-sm font-semibold text-foreground">
-              Правовая информация
+              {data?.legalTitle || "Правовая информация"}
             </h4>
             <ul className="flex flex-col gap-2">
               <li>
                 <span className="text-sm text-muted-foreground">
-                  Политика конфиденциальности
+                  {data?.privacyPolicy || "Политика конфиденциальности"}
                 </span>
               </li>
               <li>
                 <span className="text-sm text-muted-foreground">
-                  Условия использования
+                  {data?.termsOfUse || "Условия использования"}
                 </span>
               </li>
               <li>
                 <span className="text-sm text-muted-foreground">
-                  Контакты
+                  {data?.contacts || "Контакты"}
                 </span>
               </li>
             </ul>
@@ -82,7 +88,7 @@ export function PublicFooter() {
 
         <div className="mt-8 border-t border-border pt-8">
           <p className="text-center text-sm text-muted-foreground">
-            © 2025 CityFix. Создано для улучшения городов.
+            {data?.copyright || "© 2025 CityFix. Создано для улучшения городов."}
           </p>
         </div>
 

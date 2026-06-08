@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +13,8 @@ import { toast } from "sonner"
 
 export default function RegisterPage() {
   const { register } = useAuth()
+  const { t } = useLanguage()
+  const data = t?.registerPage
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
@@ -27,19 +30,19 @@ export default function RegisterPage() {
     const newErrors: Record<string, string> = {}
     
     if (!formData.username || formData.username.length < 3) {
-      newErrors.username = "Имя пользователя должно содержать минимум 3 символа"
+      newErrors.username = data?.usernameMinLength || "Имя пользователя должно содержать минимум 3 символа"
     }
     
     if (!formData.email || !formData.email.includes('@')) {
-      newErrors.email = "Введите корректный email"
+      newErrors.email = data?.invalidEmail || "Введите корректный email"
     }
     
     if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Пароли не совпадают"
+      newErrors.confirmPassword = data?.passwordsDoNotMatch || "Пароли не совпадают"
     }
     
     if (formData.password && formData.password.length < 6) {
-      newErrors.password = "Пароль должен содержать минимум 6 символов"
+      newErrors.password = data?.passwordMinLength || "Пароль должен содержать минимум 6 символов"
     }
     
     setErrors(newErrors)
@@ -64,8 +67,8 @@ export default function RegisterPage() {
         password: formData.password
       })
       
-      console.log("Registration result:", result) // Для отладки
-      toast.success("Регистрация успешна!")
+      console.log("Registration result:", result)
+      toast.success(data?.successMessage || "Регистрация успешна!")
       
       // Перенаправление на страницу входа или дашборд
       // router.push("/dashboard")
@@ -82,7 +85,7 @@ export default function RegisterPage() {
           detail.forEach(err => toast.error(err.msg || err))
         }
       } else {
-        toast.error(error.message || "Ошибка регистрации")
+        toast.error(error.message || (data?.errorMessage || "Ошибка регистрации"))
       }
     } finally {
       setLoading(false)
@@ -103,16 +106,20 @@ export default function RegisterPage() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Регистрация</CardTitle>
-            <CardDescription>Создайте аккаунт, чтобы сообщать о проблемах города</CardDescription>
+            <CardTitle className="text-2xl">{data?.title || "Регистрация"}</CardTitle>
+            <CardDescription>
+              {data?.description || "Создайте аккаунт, чтобы сообщать о проблемах города"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="username">Имя пользователя *</Label>
+                <Label htmlFor="username">
+                  {data?.usernameLabel || "Имя пользователя"} *
+                </Label>
                 <Input
                   id="username"
-                  placeholder="alex"
+                  placeholder={data?.usernamePlaceholder || "alex"}
                   value={formData.username}
                   onChange={(e) => {
                     setFormData({ ...formData, username: e.target.value })
@@ -127,11 +134,13 @@ export default function RegisterPage() {
               </div>
               
               <div className="flex flex-col gap-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email">
+                  {data?.emailLabel || "Email"} *
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="alex@example.com"
+                  placeholder={data?.emailPlaceholder || "alex@example.com"}
                   value={formData.email}
                   onChange={(e) => {
                     setFormData({ ...formData, email: e.target.value })
@@ -146,31 +155,37 @@ export default function RegisterPage() {
               </div>
               
               <div className="flex flex-col gap-2">
-                <Label htmlFor="name">Имя (опционально)</Label>
+                <Label htmlFor="name">
+                  {data?.nameLabel || "Имя"} {data?.optionalLabel || "(опционально)"}
+                </Label>
                 <Input
                   id="name"
-                  placeholder="Алексей"
+                  placeholder={data?.namePlaceholder || "Алексей"}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
               
               <div className="flex flex-col gap-2">
-                <Label htmlFor="phone">Телефон (опционально)</Label>
+                <Label htmlFor="phone">
+                  {data?.phoneLabel || "Телефон"} {data?.optionalLabel || "(опционально)"}
+                </Label>
                 <Input
                   id="phone"
-                  placeholder="+7 (777) 123-45-67"
+                  placeholder={data?.phonePlaceholder || "+7 (777) 123-45-67"}
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
               
               <div className="flex flex-col gap-2">
-                <Label htmlFor="password">Пароль *</Label>
+                <Label htmlFor="password">
+                  {data?.passwordLabel || "Пароль"} *
+                </Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={data?.passwordPlaceholder || "••••••••"}
                   value={formData.password}
                   onChange={(e) => {
                     setFormData({ ...formData, password: e.target.value })
@@ -185,11 +200,13 @@ export default function RegisterPage() {
               </div>
               
               <div className="flex flex-col gap-2">
-                <Label htmlFor="confirmPassword">Подтвердите пароль *</Label>
+                <Label htmlFor="confirmPassword">
+                  {data?.confirmPasswordLabel || "Подтвердите пароль"} *
+                </Label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={data?.confirmPasswordPlaceholder || "••••••••"}
                   value={formData.confirmPassword}
                   onChange={(e) => {
                     setFormData({ ...formData, confirmPassword: e.target.value })
@@ -204,14 +221,16 @@ export default function RegisterPage() {
               </div>
               
               <Button type="submit" className="mt-2 w-full" disabled={loading}>
-                {loading ? "Регистрация..." : "Зарегистрироваться"}
+                {loading 
+                  ? (data?.registeringButton || "Регистрация...") 
+                  : (data?.registerButton || "Зарегистрироваться")}
               </Button>
             </form>
             
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              Уже есть аккаунт?{" "}
+              {data?.haveAccountText || "Уже есть аккаунт?"}{" "}
               <Link href="/login" className="font-medium text-primary hover:underline">
-                Войти
+                {data?.loginLink || "Войти"}
               </Link>
             </p>
           </CardContent>

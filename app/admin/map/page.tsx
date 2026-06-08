@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useApp } from "@/lib/store"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { MapContainer } from "@/components/map/map-container"
 import { getClusters } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,11 +41,54 @@ interface MapCluster {
   updatedAt: string
 }
 
+// Переводы для категорий
+const categoryLabels: Record<string, Record<string, string>> = {
+  roads: { ru: "Дороги", kz: "Жолдар" },
+  light: { ru: "Освещение", kz: "Жарықтандыру" },
+  water: { ru: "Водоснабжение", kz: "Сумен жабдықтау" },
+  trash: { ru: "Мусор", kz: "Қоқыс" },
+  graffiti: { ru: "Граффити", kz: "Граффити" },
+  buildings: { ru: "Здания", kz: "Ғимараттар" },
+  trees: { ru: "Деревья", kz: "Ағаштар" },
+  other: { ru: "Другое", kz: "Басқа" }
+}
+
+// Переводы для приоритетов
+const priorityLabels: Record<string, Record<string, string>> = {
+  critical: { ru: "Критический", kz: "Критикалық" },
+  medium: { ru: "Средний", kz: "Орташа" },
+  low: { ru: "Низкий", kz: "Төмен" }
+}
+
+// Переводы для статусов
+const statusLabels: Record<string, Record<string, string>> = {
+  new: { ru: "Новый", kz: "Жаңа" },
+  in_progress: { ru: "В работе", kz: "Жұмыс барысында" },
+  resolved: { ru: "Решён", kz: "Шешілді" }
+}
+
 export default function AdminMapPage() {
   const { state } = useApp()
+  const { locale, t } = useLanguage()
+  const data = t?.adminMapPage
   const [allClusters, setAllClusters] = useState<MapCluster[]>([])
   const [selectedCluster, setSelectedCluster] = useState<MapCluster | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Функция для получения названия категории на текущем языке
+  const getCategoryName = (categoryId: string) => {
+    return categoryLabels[categoryId]?.[locale] || categoryId
+  }
+
+  // Функция для получения названия приоритета на текущем языке
+  const getPriorityName = (priority: string) => {
+    return priorityLabels[priority]?.[locale] || priority
+  }
+
+  // Функция для получения названия статуса на текущем языке
+  const getStatusName = (status: string) => {
+    return statusLabels[status]?.[locale] || status
+  }
 
   useEffect(() => {
     fetchData()
@@ -78,7 +122,7 @@ export default function AdminMapPage() {
       setAllClusters(formattedClusters)
     } catch (error) {
       console.error('Ошибка загрузки кластеров:', error)
-      toast.error("Ошибка загрузки кластеров")
+      toast.error(data?.loadError || "Ошибка загрузки кластеров")
     } finally {
       setLoading(false)
     }
@@ -123,19 +167,19 @@ export default function AdminMapPage() {
       })
 
       if (response.ok) {
-        toast.success("Статус кластера обновлён")
+        toast.success(data?.statusUpdated || "Статус кластера обновлён")
         fetchData()
         setSelectedCluster(null)
       } else {
-        toast.error("Ошибка обновления статуса")
+        toast.error(data?.updateError || "Ошибка обновления статуса")
       }
     } catch {
-      toast.error("Ошибка соединения с сервером")
+      toast.error(data?.connectionError || "Ошибка соединения с сервером")
     }
   }
 
   if (loading) {
-    return <div className="p-6">Загрузка карты...</div>
+    return <div className="p-6">{data?.loading || "Загрузка карты..."}</div>
   }
 
   return (
@@ -159,7 +203,7 @@ export default function AdminMapPage() {
             <SheetTrigger asChild>
               <Button size="sm" variant="secondary" className="gap-2 shadow-lg">
                 <SlidersHorizontal className="h-4 w-4" />
-                Фильтры
+                {data?.filtersButton || "Фильтры"}
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-80 p-0">
@@ -176,7 +220,7 @@ export default function AdminMapPage() {
                 <div>
                   <CardTitle className="text-base">{selectedCluster.title}</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    {selectedCluster.categoryId} · {selectedCluster.district} · {selectedCluster.complaintsCount} жалоб
+                    {getCategoryName(selectedCluster.categoryId)} · {selectedCluster.district} · {selectedCluster.complaintsCount} {data?.complaints || "жалоб"}
                   </p>
                 </div>
                 <button onClick={() => setSelectedCluster(null)} className="text-muted-foreground hover:text-foreground">
@@ -190,24 +234,18 @@ export default function AdminMapPage() {
                     selectedCluster.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-green-100 text-green-700'
                   }>
-                    {selectedCluster.priority === "critical"
-                      ? "Критический"
-                      : selectedCluster.priority === "medium"
-                      ? "Средний"
-                      : "Низкий"}
+                    {getPriorityName(selectedCluster.priority)}
                   </Badge>
 
                   <Badge variant="outline">
-                    {selectedCluster.status === "new"
-                      ? "Новый"
-                      : selectedCluster.status === "in_progress"
-                      ? "В работе"
-                      : "Решён"}
+                    {getStatusName(selectedCluster.status)}
                   </Badge>
                 </div>
 
                 <div>
-                  <label className="text-xs text-muted-foreground">Изменить статус</label>
+                  <label className="text-xs text-muted-foreground">
+                    {data?.changeStatus || "Изменить статус"}
+                  </label>
                   <Select 
                     value={selectedCluster.status}
                     onValueChange={(v) => updateClusterStatus(Number(selectedCluster.id), v)}
@@ -216,9 +254,9 @@ export default function AdminMapPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="new">Новый</SelectItem>
-                      <SelectItem value="in_progress">В работе</SelectItem>
-                      <SelectItem value="resolved">Решён</SelectItem>
+                      <SelectItem value="new">{statusLabels.new[locale]}</SelectItem>
+                      <SelectItem value="in_progress">{statusLabels.in_progress[locale]}</SelectItem>
+                      <SelectItem value="resolved">{statusLabels.resolved[locale]}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

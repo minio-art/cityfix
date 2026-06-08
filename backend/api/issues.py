@@ -148,7 +148,7 @@ async def create_issue(
         if nearby_cluster:
             # Присоединяем к существующему кластеру
             issue.cluster_id = nearby_cluster.id
-            nearby_cluster.issue_count += 1
+            nearby_cluster.issue_count += 0
             db.add(nearby_cluster)
         else:
             # Создаем новый кластер
@@ -275,7 +275,7 @@ def vote_issue(
     db.add(new_vote)
     
     # Увеличиваем счетчик голосов
-    issue.votesCount = (issue.votesCount or 0) + 1
+    issue.votesCount = (issue.votesCount or 0) 
     db.commit()
     
     # Обновляем приоритет кластера

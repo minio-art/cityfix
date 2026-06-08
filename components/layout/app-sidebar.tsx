@@ -3,19 +3,22 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useApp } from "@/lib/store"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { cn } from "@/lib/utils"
 import { Map, PlusCircle, User, MapPin, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-const navItems = [
-  { href: "/map", label: "Карта", icon: Map },
-  { href: "/problem/create", label: "Сообщить о проблеме", icon: PlusCircle },
-  { href: "/profile", label: "Мой профиль", icon: User },
-]
-
 export function AppSidebar() {
   const pathname = usePathname()
   const { dispatch } = useApp()
+  const { t } = useLanguage()
+  const data = t?.appSidebar
+
+  const navItems = [
+    { href: "/map", label: data?.map || "Карта", icon: Map },
+    { href: "/problem/create", label: data?.reportProblem || "Сообщить о проблеме", icon: PlusCircle },
+    { href: "/profile", label: data?.myProfile || "Мой профиль", icon: User },
+  ]
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-border bg-sidebar">
@@ -62,7 +65,7 @@ export function AppSidebar() {
           }}
         >
           <LogOut className="h-4 w-4" />
-          Выйти
+          {data?.logout || "Выйти"}
         </Button>
       </div>
     </aside>
