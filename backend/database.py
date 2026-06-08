@@ -13,7 +13,7 @@ DB_USER = os.getenv("DB_USER", "cityfixdatabase_user")
 DB_HOST = os.getenv("DB_HOST", "d8ija4btqb8s73b7ogog-a.oregon-postgres.render.com")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "cityfixdatabase")
-DB_PASSWORD = quote_plus(os.getenv("DB_PASSWORD", "postgres"))
+DB_PASSWORD = quote_plus(os.getenv("DB_PASSWORD", "fjehTLGegpIh98nqU5mN7K2acg8elXUV"))
 
 # Кодируем пароль
 
