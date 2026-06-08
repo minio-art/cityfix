@@ -9,10 +9,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Получаем данные для подключения
-DB_USER = os.getenv("DB_USER", "cityfixdatabse_user")
+DB_USER = os.getenv("DB_USER", "cityfixdatbase_user")
 DB_HOST = os.getenv("DB_HOST", "d8ija4btqb8s73b7ogog-a.oregon-postgres.render.com")
 DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME", "cityfixdatabse")
+DB_NAME = os.getenv("DB_NAME", "cityfixdatbase")
 DB_PASSWORD = quote_plus(os.getenv("DB_PASSWORD", "postgres"))
 
 # Кодируем пароль

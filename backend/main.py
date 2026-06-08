@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 from middleware.language_middleware import LanguageMiddleware
 from datetime import datetime
+from database import engine, Base
 from api import issues, ai, auth, feedback
 from database import SessionLocal 
 from models import Cluster, Issue
