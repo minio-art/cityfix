@@ -78,6 +78,27 @@ def health():
         "status": "ok",
         "timestamp": datetime.now().isoformat()
     }
+@app.on_event("startup")
+async def init_db():
+    """Создает таблицы в базе данных при запуске"""
+    print("🔄 Checking database tables...")
+    try:
+        # Проверяем существующие таблицы
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        print(f"📊 Existing tables: {existing_tables}")
+        
+        # Создаем отсутствующие таблицы
+        if "users" not in existing_tables:
+            print("📝 Creating database tables...")
+            Base.metadata.create_all(bind=engine)
+            print("✅ Database tables created successfully!")
+        else:
+            print("✅ Tables already exist")
+    except Exception as e:
+        print(f"❌ Error initializing database: {e}")
+
 
 @app.get("/api/clusters")
 def get_clusters():
